@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Race Plan</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1 id="routeName">Race Plan</h1>
+      <div id="status" class="muted">Connecting…</div>
+    </div>
+    <div class="wind">
+      <div><span class="muted">TWD live</span> <strong id="twdLive">--</strong></div>
+      <label><span class="muted">TWD override</span>
+        <input id="twdOverride" type="number" min="0" max="359" step="1" placeholder="auto">
+      </label>
+    </div>
+  </header>
+
+  <main>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Leg</th>
+          <th class="num">BRG</th>
+          <th class="num">DIST</th>
+          <th class="num">TWA</th>
+          <th>Sail cfg</th>
+          <th class="num">STW</th>
+          <th class="num">Leg time</th>
+        </tr>
+      </thead>
+      <tbody id="legs">
+        <tr><td colspan="8" class="muted center">No active route</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
