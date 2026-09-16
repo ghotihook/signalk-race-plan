@@ -1,12 +1,9 @@
 {
   "name": "signalk-race-plan",
   "version": "0.1.0",
-  "description": "Signal K webapp showing each leg of the active route with TWA, sail config, STW and leg time",
-  "main": "index.js",
+  "description": "Signal K webapp showing each leg of the active route with bearing, TWA, expected STW, leg time and time on each tack",
   "keywords": [
-    "signalk-node-server-plugin",
     "signalk-webapp",
-    "signalk-plugin-enabled-by-default",
     "signalk-category-utility"
   ],
   "signalk": {

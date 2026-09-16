@@ -6,15 +6,15 @@ Use it ashore with a forecast wind to plan the race, or on the water with live w
 
 ## Example
 
-Wind from 000° at 12 kn, with a polar whose best upwind angle is 40° (6.0 kn) and best downwind angle is 150° (7.0 kn). The boat has rounded Windward and is heading to Wing:
+Wind from 000°T at 12 kn, magnetic variation 12.3°E, with a polar whose best upwind angle is 40° (6.0 kn) and best downwind angle is 150° (7.0 kn). The boat has rounded Windward and is heading to Wing:
 
-| # | Leg | BRG | DIST | TWA | Sail cfg | STW | Leg time | Port / Stbd |
-|---|-----|----:|-----:|----:|----------|----:|---------:|------------:|
-| 1 | Start → Windward | 000° | 1.50 nm | 0° S | -- | 6.0 kn tack 40° | 19m 36s | P 9m 48s / S 9m 48s |
-| **2** | **Windward → Wing** | **120°** | **1.00 nm** | **120° P** | **--** | **7.8 kn** | **7m 45s** | **P 7m 45s** |
-| 3 | Wing → Leeward | 240° | 1.00 nm | 120° S | -- | 7.8 kn | 7m 45s | S 7m 45s |
-| 4 | Leeward → Windward | 330° | 1.50 nm | 30° S | -- | 6.0 kn tack 40° | 16m 58s | P 2m 39s / S 14m 19s |
-| 5 | Windward → Finish | 180° | 2.00 nm | 180° S | -- | 7.0 kn gybe 150° | 19m 48s | P 9m 54s / S 9m 54s |
+| # | Leg | BRG °M | DIST | TWA | STW | Leg time | Port / Stbd |
+|---|-----|----:|-----:|----:|----:|---------:|------------:|
+| 1 | Start → Windward | 348° | 1.50 nm | 0° S | 6.0 kn tack 40° | 19m 36s | P 9m 48s / S 9m 48s |
+| **2** | **Windward → Wing** | **108°** | **1.00 nm** | **120° P** | **7.8 kn** | **7m 45s** | **P 7m 45s** |
+| 3 | Wing → Leeward | 228° | 1.00 nm | 120° S | 7.8 kn | 7m 45s | S 7m 45s |
+| 4 | Leeward → Windward | 318° | 1.50 nm | 30° S | 6.0 kn tack 40° | 16m 58s | P 2m 39s / S 14m 19s |
+| 5 | Windward → Finish | 168° | 2.00 nm | 180° S | 7.0 kn gybe 150° | 19m 48s | P 9m 54s / S 9m 54s |
 
 On the page:
 
@@ -37,10 +37,9 @@ Above the table, the header shows the route name, the next mark ("Heading to Win
 |--------|---------------|
 | **#** | Leg number |
 | **Leg** | `From → To`, using waypoint names from the route. Falls back to `WP1`, `WP2`, … |
-| **BRG** | Great-circle bearing from mark to mark, in degrees true |
+| **BRG** | Great-circle bearing from mark to mark, in degrees **magnetic**: what the compass shows. Converted from true using `navigation.magneticVariation`, and the header shows the variation used, e.g. `BRG °M (var 12.3°E)`. If no variation is available, the true bearing is shown and the header warns `°T (no variation)` |
 | **DIST** | Great-circle distance from mark to mark, in nautical miles |
-| **TWA** | TWD − leg bearing. `S` means the wind is on the starboard side when sailing the leg, `P` port. It's coloured green (S) or red (P) when the leg can be sailed directly. On tack/gybe legs it isn't coloured, because both sides are sailed |
-| **Sail cfg** | Placeholder, not implemented yet |
+| **TWA** | TWD − true leg bearing. `S` means the wind is on the starboard side when sailing the leg, `P` port. It's coloured green (S) or red (P) when the leg can be sailed directly. On tack/gybe legs it isn't coloured, because both sides are sailed |
 | **STW** | Expected boat speed from the polar at the leg's TWA. If the leg is tighter than the polar's beat angle, it shows the target upwind speed with `tack <angle>`. If it's deeper than the run angle, it shows the target downwind speed with `gybe <angle>` |
 | **Leg time** | Leg distance ÷ speed made good along the leg. That's STW for a direct leg, and target VMG ÷ cos(TWA) for a tack/gybe leg |
 | **Port / Stbd** | Time on each tack or gybe. A direct leg puts all its time on one side. A tack/gybe leg is split by resolving it along and across the wind: dead upwind or downwind is 50/50, and the closer the mark is to the layline, the more time goes on one side. A side with under 1% of the leg time is left out |
@@ -53,10 +52,10 @@ The header has two pairs of boxes, one pair for TWD and one for TWS. Each pair s
 
 | | Signal K value | Override |
 |---|---|---|
-| **TWD** | `environment.wind.directionTrue`, or if that isn't arriving, `navigation.headingTrue` + `environment.wind.angleTrueWater` | Degrees true |
+| **TWD** (true) | The first of these that's arriving:<br>1. `environment.wind.directionTrue`<br>2. `environment.wind.directionMagnetic` + `navigation.magneticVariation`<br>3. `navigation.headingTrue` + `environment.wind.angleTrueWater`<br>The source in use is shown under the value | Degrees true, as in forecasts |
 | **TWS** | `environment.wind.speedTrue` | Knots |
 
-- **Smoothing:** live values are smoothed so the table doesn't jump with every gust or shift.
+- **Smoothing:** live values are smoothed so the table doesn't jump with every gust or shift. After a gap, smoothing starts again from the first new reading, so old wind isn't blended in.
 - **Stale data:** if a live value hasn't updated for 15 seconds, it's shown as e.g. `270° stale`. It isn't used, and the columns that depend on it show `--`.
 - **Overrides:** type a value to plan with a forecast. The override box turns amber and is tagged **In use**. Press **×** to clear it and go back to Signal K.
 - **Saved per browser:** overrides are kept in that browser across reloads. The amber box is the reminder that one is set.
@@ -72,9 +71,13 @@ The header has two pairs of boxes, one pair for TWD and one for TWS. Each pair s
 | Message | Meaning |
 |---------|---------|
 | `No active route` | No route is active in the Course API |
+| `BRG °T (no variation)` | Nothing publishes `navigation.magneticVariation`, so bearings are shown true, not magnetic |
 | `Disconnected, retrying…` | The data connection to the server dropped. It reconnects every 3 s |
-| `Polar: No active polar selected` | The polar plugin is running but no polar is active. STW, leg time and port/stbd show `--` |
+| `Polar: No active polar selected` | The polar plugin is running but no polar is active |
 | `Polar plugin not reachable (…)` | The polar plugin isn't installed or running, or you aren't logged in on a secured server |
+| `Polar plugin not responding (…)` | The polar plugin didn't reply within 5 s |
+
+While any polar message is showing, STW, leg time and port/stbd show `--`, and Race Plan retries every 5 s. It never keeps showing speeds from an earlier polar: the curve is re-read every 15 s, and a failed read clears it straight away.
 
 ## Requirements
 
@@ -93,12 +96,12 @@ cd ~/.signalk
 npm install /path/to/signalk-race-plan
 ```
 
-Restart the server, then open **Webapps → Race Plan** (`/signalk-race-plan/`). The plugin is enabled by default.
+Restart the server, then open **Webapps → Race Plan** (`/signalk-race-plan/`). It's a plain webapp with nothing to enable or configure.
 
 ## Limitations
 
 - **Polar only:** figures don't include current, leeway, tacking or gybing losses, or wind shifts along a leg.
 - **Fewest boards:** the port/stbd split assumes one tack or gybe each way, not how often you'd actually tack.
 - **Mark to mark:** leg figures for the current leg cover the whole leg, not what's left from the boat's position.
-- **True bearings only.**
+- **Variation:** magnetic bearings use the boat's current variation for every leg, which is fine for a race course but not for a long passage. Compass deviation isn't applied.
 - **Route edits:** if you move or add marks in the active route, reload the page to see them. Race Plan only refetches the route when a different route is activated or the direction is reversed.

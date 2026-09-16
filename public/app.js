@@ -7,8 +7,10 @@
   const WIND_SMOOTHING = 0.1 // EMA factor applied to wind per update
   const STALE_MS = 15000 // wind/heading older than this is not used
   const TWS_BUCKET_KN = 0.2 // polar curve is refetched when TWS moves by this much
-  const POLAR_REFRESH_MS = 60000 // pick up polar / performance factor changes
-  const POLAR_RETRY_MS = 30000
+  const POLAR_TWS_TOLERANCE_KN = 0.5 // a curve is only used within this much of the TWS in use
+  const POLAR_REFRESH_MS = 15000 // pick up polar / performance factor changes
+  const POLAR_RETRY_MS = 5000 // while failing, retry this often whatever TWS does
+  const POLAR_TIMEOUT_MS = 5000
   const KN_PER_MS = 3600 / 1852
 
   const state = {
@@ -17,11 +19,14 @@
     twdLive: null, // degrees true
     twdVec: null, // smoothed { x, y }
     twdAt: 0, // ms timestamp of the last TWD update
+    twdVia: null, // which Signal K source the last TWD update came from
     twsLive: null, // knots, smoothed
     twsAt: 0,
     heading: null, // degrees true, for deriving TWD from angleTrueWater
     headingAt: 0,
-    directionTrueAt: 0 // last time environment.wind.directionTrue arrived
+    directionTrueAt: 0, // last time environment.wind.directionTrue arrived
+    directionMagneticAt: 0, // last time directionMagnetic + variation gave a TWD
+    variation: null // degrees, east positive; changes slowly so it never goes stale
   }
 
   const polar = {
@@ -121,20 +126,27 @@
 
   // Fetches the polar curve for the TWS in use, at most one request at a time.
   // render() calls this every time, so a newer TWS is picked up once the
-  // in-flight request finishes.
+  // in-flight request finishes. Any failure clears the curve, so the table
+  // shows -- rather than speeds from an old polar.
   function ensurePolar (twsKn) {
     if (twsKn === null || polar.loading) return
     const bucket = Math.round(twsKn / TWS_BUCKET_KN) * TWS_BUCKET_KN
     const age = Date.now() - polar.fetchedAt
-    const due = bucket !== polar.tws ||
-      age > (polar.error ? POLAR_RETRY_MS : POLAR_REFRESH_MS)
+    const due = polar.error
+      ? age > POLAR_RETRY_MS
+      : bucket !== polar.tws || age > POLAR_REFRESH_MS
     if (!due) return
 
     polar.loading = true
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), POLAR_TIMEOUT_MS)
     const url = `${POLAR_CURVE}?tws=${(bucket / KN_PER_MS).toFixed(3)}&step=${rad(1).toFixed(5)}`
-    fetch(url, { credentials: 'include' })
+    fetch(url, { credentials: 'include', signal: controller.signal })
       .then(async (res) => {
-        const body = await res.json().catch(() => null)
+        const body = await res.json().catch((e) => {
+          if (e.name === 'AbortError') throw e
+          return null
+        })
         if (res.ok && body && Array.isArray(body.points)) {
           polar.curve = body
           polar.error = null
@@ -148,14 +160,23 @@
       })
       .catch((e) => {
         polar.curve = null
-        polar.error = `Polar plugin not reachable (${e.message})`
+        polar.error = e.name === 'AbortError'
+          ? `Polar plugin not responding (no reply in ${POLAR_TIMEOUT_MS / 1000} s)`
+          : `Polar plugin not reachable (${e.message})`
       })
       .finally(() => {
+        clearTimeout(timer)
         polar.tws = bucket
         polar.fetchedAt = Date.now()
         polar.loading = false
         render()
       })
+  }
+
+  // The curve fetched for a nearby TWS, or null if there isn't one yet
+  function polarCurveFor (twsKn) {
+    if (twsKn === null || !polar.curve || polar.tws === null) return null
+    return Math.abs(polar.tws - twsKn) <= POLAR_TWS_TOLERANCE_KN ? polar.curve : null
   }
 
   function tbsAt (points, twa) {
@@ -202,10 +223,12 @@
 
   // ---- wind -------------------------------------------------------------
 
-  function updateTwd (twdDeg) {
+  function updateTwd (twdDeg, via) {
+    state.twdVia = via
     const x = Math.cos(rad(twdDeg))
     const y = Math.sin(rad(twdDeg))
-    if (!state.twdVec) {
+    // Start afresh after a gap rather than blending in wind from before it
+    if (!state.twdVec || !fresh(state.twdAt)) {
       state.twdVec = { x, y }
     } else {
       state.twdVec.x += WIND_SMOOTHING * (x - state.twdVec.x)
@@ -239,7 +262,7 @@
     $('conn').hidden = !text
   }
 
-  const fmtTwd = (d) => `${Math.round(d)}°`
+  const fmtTwd = (d) => `${norm360(Math.round(d))}°`
   const fmtTws = (kn) => `${kn.toFixed(1)} kn`
 
   // Shows the Signal K and override tiles for one wind quantity, marks the
@@ -294,12 +317,22 @@
 
   function render () {
     const twd = renderSource('twd', state.twdLive, state.twdAt, fmtTwd)
+    $('twdVia').textContent = state.twdVia || ''
     const tws = renderSource('tws', state.twsLive, state.twsAt, fmtTws)
     $('twaSource').textContent = twd.label
     $('stwSource').textContent = tws.label
 
+    // Bearings are shown magnetic (what the compass reads); TWA is still
+    // worked out from the true bearing
+    const variation = state.variation
+    const brgSource = $('brgSource')
+    brgSource.textContent = variation === null
+      ? '°T (no variation)'
+      : `°M (var ${Math.abs(variation).toFixed(1)}°${variation >= 0 ? 'E' : 'W'})`
+    brgSource.classList.toggle('warn', variation === null)
+
     ensurePolar(tws.value)
-    const curve = tws.value !== null ? polar.curve : null
+    const curve = polarCurveFor(tws.value)
     $('polarStatus').textContent = tws.value !== null && polar.error ? polar.error : ''
     $('polarStatus').hidden = !$('polarStatus').textContent
 
@@ -307,7 +340,7 @@
     const route = state.route
     if (!route || route.points.length < 2) {
       $('routeName').textContent = 'Race Plan'
-      tbody.innerHTML = '<tr><td colspan="9" class="muted center">No active route</td></tr>'
+      tbody.innerHTML = '<tr><td colspan="8" class="muted center">No active route</td></tr>'
       return
     }
 
@@ -335,10 +368,9 @@
       rows.push(`<tr class="${cls}">
         <td>${i + 1}</td>
         <td>${escapeHtml(from.name)} &rarr; ${escapeHtml(to.name)}</td>
-        <td class="num">${Math.round(brg).toString().padStart(3, '0')}°</td>
+        <td class="num">${norm360(Math.round(brg - (variation ?? 0))).toString().padStart(3, '0')}°</td>
         <td class="num">${dist.toFixed(2)} nm</td>
         <td class="num">${fmtTwa(twa, perf !== null && perf.mode !== 'direct')}</td>
-        <td class="placeholder">--</td>
         <td class="num">${stwCell}</td>
         <td class="num">${timeCell}</td>
         <td class="num">${boardsCell}</td>
@@ -359,9 +391,11 @@
         context: 'vessels.self',
         subscribe: [
           { path: 'environment.wind.directionTrue', period: 1000 },
+          { path: 'environment.wind.directionMagnetic', period: 1000 },
           { path: 'environment.wind.angleTrueWater', period: 1000 },
           { path: 'environment.wind.speedTrue', period: 1000 },
           { path: 'navigation.headingTrue', period: 1000 },
+          { path: 'navigation.magneticVariation', period: 10000 },
           { path: 'navigation.course.activeRoute', policy: 'instant' }
         ]
       }))
@@ -371,25 +405,36 @@
       const delta = JSON.parse(msg.data)
       if (!delta.updates) return
       let courseChanged = false
-      let windChanged = false
+      let redraw = false
 
       for (const u of delta.updates) {
         for (const { path, value } of u.values || []) {
           if (path === 'environment.wind.directionTrue' && typeof value === 'number') {
             state.directionTrueAt = Date.now()
-            updateTwd(deg(value))
-            windChanged = true
+            updateTwd(deg(value), 'directionTrue')
+            redraw = true
+          } else if (path === 'environment.wind.directionMagnetic' && typeof value === 'number') {
+            // First fallback: magnetic TWD + variation (east positive)
+            if (!fresh(state.directionTrueAt) && state.variation !== null) {
+              state.directionMagneticAt = Date.now()
+              updateTwd(deg(value) + state.variation, 'directionMagnetic + variation')
+              redraw = true
+            }
           } else if (path === 'environment.wind.speedTrue' && typeof value === 'number') {
             updateTws(value * KN_PER_MS)
-            windChanged = true
+            redraw = true
+          } else if (path === 'navigation.magneticVariation' && typeof value === 'number') {
+            if (state.variation === null) redraw = true
+            state.variation = deg(value)
           } else if (path === 'navigation.headingTrue' && typeof value === 'number') {
             state.heading = deg(value)
             state.headingAt = Date.now()
           } else if (path === 'environment.wind.angleTrueWater' && typeof value === 'number') {
-            // Fallback when directionTrue isn't arriving
-            if (!fresh(state.directionTrueAt) && state.heading !== null && fresh(state.headingAt)) {
-              updateTwd(state.heading + deg(value))
-              windChanged = true
+            // Last fallback: true heading + true wind angle
+            if (!fresh(state.directionTrueAt) && !fresh(state.directionMagneticAt) &&
+                state.heading !== null && fresh(state.headingAt)) {
+              updateTwd(state.heading + deg(value), 'headingTrue + angleTrueWater')
+              redraw = true
             }
           } else if (path === 'navigation.course.activeRoute') {
             courseChanged = true
@@ -398,7 +443,7 @@
       }
 
       if (courseChanged) loadCourse().catch((e) => setStatus(e.message))
-      else if (windChanged) render()
+      else if (redraw) render()
     }
 
     ws.onclose = () => {

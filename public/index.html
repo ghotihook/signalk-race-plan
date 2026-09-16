@@ -19,6 +19,7 @@
         <div id="twdLiveTile" class="wind-tile">
           <div class="wind-label">TWD Signal K <span class="in-use-tag">In use</span></div>
           <div id="twdLive" class="wind-value">--</div>
+          <div id="twdVia" class="wind-via"></div>
         </div>
         <div id="twdOverrideTile" class="wind-tile override">
           <label class="wind-label" for="twdOverride">TWD override <span class="in-use-tag">In use</span></label>
@@ -50,17 +51,16 @@
         <tr>
           <th>#</th>
           <th>Leg</th>
-          <th class="num">BRG</th>
+          <th class="num">BRG <span id="brgSource"></span></th>
           <th class="num">DIST</th>
           <th class="num">TWA <span id="twaSource"></span></th>
-          <th>Sail cfg</th>
           <th class="num">STW <span id="stwSource"></span></th>
           <th class="num">Leg time</th>
           <th class="num">Port / Stbd</th>
         </tr>
       </thead>
       <tbody id="legs">
-        <tr><td colspan="9" class="muted center">No active route</td></tr>
+        <tr><td colspan="8" class="muted center">No active route</td></tr>
       </tbody>
     </table>
   </main>
