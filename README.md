@@ -33,7 +33,17 @@ Reading the example:
 - **Leg 5** is dead downwind. It's sailed as a run at 150° on each gybe, again split evenly.
 - **ETAs** add up from now: 14:00 + 4m 39s at Wing (14:05), + 7m 45s at Leeward (14:12), and so on to the finish.
 
-Above the table, the header shows the route name, the next mark ("Heading to Wing"), the finish summary and the wind inputs described below.
+Above the table, the header shows the route name, the finish summary, live data indicators, the next mark ("Heading to Wing") and the wind inputs described below.
+
+## Is the data live?
+
+Numbers can sit still for a while even when data is flowing, so the header has a live strip: `● Wind 1s  ● GPS 0s  ● Polar 6s`.
+
+- **Dot:** pulses each time new data for that input arrives.
+- **Age:** seconds since the last update. Green is under 5 s and amber is 5–15 s. After 15 s it's red **stale**, and values from that input are no longer used.
+- **Wind** is the older of TWD and TWS, counting only values from Signal K. If both are overridden, it shows amber **override**.
+- **Polar** is the time since the curve was last read. It's re-read every 15 s, and shows red **error** if reading fails.
+- **Current leg time** from the boat is shown to the second (`4m 39s`), so it visibly ticks down as you sail. Other legs are in whole minutes.
 
 ## Columns
 
@@ -44,7 +54,7 @@ Columns are ordered by importance, so a phone shows Leg, TWA, STW and Time witho
 | **Leg** | Leg number and `From → To`, using waypoint names from the route. Falls back to `WP1`, `WP2`, … On the current leg it's `Boat → To` (see [During the race](#during-the-race)) |
 | **TWA** | TWD − true leg bearing. `S` means the wind is on the starboard side when sailing the leg, `P` port. It's coloured green (S) or red (P) when the leg can be sailed directly. On beat/run legs it isn't coloured, because both sides are sailed. Without a polar the app can't tell which legs are beats or runs, so every TWA is coloured |
 | **STW** | Target boat speed from the polar. On a direct leg it's the speed at the leg's TWA. If the leg is tighter than the polar's beat angle, it's the upwind target with `beat <angle>` underneath; if it's deeper than the run angle, the downwind target with `run <angle>` underneath |
-| **Time** | Leg distance ÷ speed made good along the leg, in whole minutes. Speed made good is STW for a direct leg, and target VMG ÷ \|cos(TWA)\| for a beat/run leg |
+| **Time** | Leg distance ÷ speed made good along the leg, in whole minutes (to the second on the current leg from the boat). Speed made good is STW for a direct leg, and target VMG ÷ \|cos(TWA)\| for a beat/run leg |
 | **Port / Stbd** | Time on each tack or gybe. A direct leg puts all its time on one side. A beat/run leg is split by resolving it along and across the wind: dead upwind or downwind is 50/50, and the closer the mark is to the layline, the more time goes on one side. A side with under 1% of the leg time is left out |
 | **ETA** | Clock time at the mark (nearest minute), adding leg times from now. Blank for sailed legs. Needs a fresh position |
 | **BRG** | Great-circle bearing to the mark, in degrees **magnetic**: what the compass shows. Converted from true using `navigation.magneticVariation`; the header shows the variation used, e.g. `°M var 12.3°E`. If no variation is available, the true bearing is shown and the header warns `°T no variation` |

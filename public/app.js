@@ -33,7 +33,10 @@
     variation: null // degrees, east positive; changes slowly so it never goes stale
   }
 
+  const LIVE_SLOW_MS = 5000 // live indicator turns amber after this long without an update
+
   const polar = {
+    okAt: 0, // last successful curve fetch
     tws: null, // knots bucket the curve was fetched for
     curve: null, // { points: [{ twa, tbs }], beat, run } in rad and m/s
     error: null,
@@ -153,6 +156,8 @@
         })
         if (res.ok && body && Array.isArray(body.points)) {
           polar.curve = body
+          polar.okAt = Date.now()
+          pulse('Polar')
           polar.error = null
         } else if (body && body.error) {
           polar.curve = null
@@ -300,13 +305,54 @@
     return `<span class="${side}">${Math.round(Math.abs(twa))}° ${label}</span>`
   }
 
-  // Whole minutes: the polar model isn't accurate to the second
-  function fmtDuration (hours) {
+  // Whole minutes: the polar model isn't accurate to the second. The current
+  // leg from the boat shows seconds too, so it visibly ticks as you sail.
+  function fmtDuration (hours, withSeconds) {
+    if (withSeconds && hours < 1) {
+      const s = Math.round(hours * 3600)
+      return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`
+    }
     const total = Math.round(hours * 60)
     if (total < 1) return '<1m'
     const h = Math.floor(total / 60)
     const m = total % 60
     return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`
+  }
+
+  // ---- live indicators ----------------------------------------------------
+
+  // Briefly pulses an input's dot when fresh data for it arrives
+  function pulse (key) {
+    const dot = $(`live${key}`).querySelector('.dot')
+    dot.classList.remove('pulse')
+    void dot.offsetWidth // restart the animation
+    dot.classList.add('pulse')
+  }
+
+  // state: 'fresh' | 'slow' | 'stale' | 'override' | 'off'
+  function setLive (key, state, text) {
+    const el = $(`live${key}`)
+    for (const c of ['fresh', 'slow', 'stale', 'override', 'off']) el.classList.toggle(c, c === state)
+    el.querySelector('.age').textContent = text
+  }
+
+  function liveFromAge (key, age) {
+    if (age === null) return setLive(key, 'off', '--')
+    if (age >= STALE_MS) return setLive(key, 'stale', 'stale')
+    setLive(key, age >= LIVE_SLOW_MS ? 'slow' : 'fresh', `${Math.floor(age / 1000)}s`)
+  }
+
+  function renderLive (twd, tws, curve) {
+    const now = Date.now()
+    // Wind age is the older of TWD/TWS, counting only the ones from Signal K
+    const ages = []
+    if (!twd.usingOverride) ages.push(state.twdAt ? now - state.twdAt : null)
+    if (!tws.usingOverride) ages.push(state.twsAt ? now - state.twsAt : null)
+    if (ages.length === 0) setLive('Wind', 'override', 'override')
+    else liveFromAge('Wind', ages.includes(null) ? null : Math.max(...ages))
+    liveFromAge('Gps', state.positionAt ? now - state.positionAt : null)
+    if (curve) setLive('Polar', 'fresh', `${Math.floor((now - polar.okAt) / 1000)}s`)
+    else setLive('Polar', polar.error ? 'stale' : 'off', polar.error ? 'error' : '--')
   }
 
   // Time on each board; a board under 1% of the leg is left out
@@ -341,6 +387,7 @@
 
     ensurePolar(tws.value)
     const curve = polarCurveFor(tws.value)
+    renderLive(twd, tws, curve)
     $('polarStatus').textContent = tws.value !== null && polar.error ? polar.error : ''
     $('polarStatus').hidden = !$('polarStatus').textContent
 
@@ -387,7 +434,7 @@
       advance(l.hours)
       if (clock !== null && startTime !== null && startTime > clock) clock = startTime
       toGoNm += l.dist
-      rows.push(rowHtml('&ndash;', 'active', l, '', clock))
+      rows.push(rowHtml('&ndash;', 'active', l, '', clock, true))
     }
 
     for (let i = 0; i < route.points.length - 1; i++) {
@@ -404,7 +451,7 @@
         advance(l.hours)
         toGoNm += l.dist
         const sub = `leg ${full.dist.toFixed(2)} nm` + (full.hours !== null ? ` &middot; ${fmtDuration(full.hours)}` : '')
-        rows.push(rowHtml(i + 1, 'active', l, sub, clock))
+        rows.push(rowHtml(i + 1, 'active', l, sub, clock, true))
       } else {
         advance(full.hours)
         toGoNm += full.dist
@@ -420,7 +467,7 @@
     else summary = `<strong>Finish ${fmtClock(clock)}</strong> &middot; ${fmtDuration((clock - now) / 3600000)} to go<div class="sub">${toGoNm.toFixed(2)} nm to go &middot; ${course}</div>`
     $('summary').innerHTML = summary
 
-    function rowHtml (num, cls, l, sub, eta) {
+    function rowHtml (num, cls, l, sub, eta, fromBoat) {
       const { perf, hours } = l
       const none = '<span class="placeholder">--</span>'
       // Target speed, with the beat/run angle underneath when the leg needs one
@@ -434,7 +481,7 @@
         <td class="leg"><span class="leg-no">${num}</span> ${escapeHtml(l.from.name)} &rarr; ${escapeHtml(l.to.name)}${sub ? `<div class="sub">${sub}</div>` : ''}</td>
         <td class="num">${fmtTwa(l.twa, perf !== null && perf.mode !== 'direct')}</td>
         <td class="num">${stwCell}</td>
-        <td class="num">${hours !== null ? fmtDuration(hours) : none}</td>
+        <td class="num">${hours !== null ? fmtDuration(hours, fromBoat) : none}</td>
         <td class="num">${hours !== null ? fmtBoards(hours, perf.stbdShare) : none}</td>
         <td class="num">${etaCell}</td>
         <td class="num">${norm360(Math.round(l.brg - (variation ?? 0))).toString().padStart(3, '0')}°</td>
@@ -472,23 +519,25 @@
       if (!delta.updates) return
       let courseChanged = false
       let redraw = false
+      let windArrived = false
+      let positionArrived = false
 
       for (const u of delta.updates) {
         for (const { path, value } of u.values || []) {
           if (path === 'environment.wind.directionTrue' && typeof value === 'number') {
             state.directionTrueAt = Date.now()
             updateTwd(deg(value), 'directionTrue')
-            redraw = true
+            redraw = windArrived = true
           } else if (path === 'environment.wind.directionMagnetic' && typeof value === 'number') {
             // First fallback: magnetic TWD + variation (east positive)
             if (!fresh(state.directionTrueAt) && state.variation !== null) {
               state.directionMagneticAt = Date.now()
               updateTwd(deg(value) + state.variation, 'directionMagnetic + variation')
-              redraw = true
+              redraw = windArrived = true
             }
           } else if (path === 'environment.wind.speedTrue' && typeof value === 'number') {
             updateTws(value * KN_PER_MS)
-            redraw = true
+            redraw = windArrived = true
           } else if (path === 'navigation.magneticVariation' && typeof value === 'number') {
             if (state.variation === null) redraw = true
             state.variation = deg(value)
@@ -496,7 +545,7 @@
               typeof value.latitude === 'number' && typeof value.longitude === 'number') {
             state.position = { lat: value.latitude, lon: value.longitude }
             state.positionAt = Date.now()
-            redraw = true
+            redraw = positionArrived = true
           } else if (path === 'navigation.racing.startTime') {
             const t = typeof value === 'string' ? Date.parse(value) : NaN
             state.startTime = isNaN(t) ? null : t
@@ -509,7 +558,7 @@
             if (!fresh(state.directionTrueAt) && !fresh(state.directionMagneticAt) &&
                 state.heading !== null && fresh(state.headingAt)) {
               updateTwd(state.heading + deg(value), 'headingTrue + angleTrueWater')
-              redraw = true
+              redraw = windArrived = true
             }
           } else if (path === 'navigation.course.activeRoute') {
             courseChanged = true
@@ -517,6 +566,8 @@
         }
       }
 
+      if (windArrived) pulse('Wind')
+      if (positionArrived) pulse('Gps')
       if (courseChanged) loadCourse().catch((e) => setStatus(e.message))
       else if (redraw) render()
     }

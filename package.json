@@ -1,6 +1,6 @@
 {
   "name": "signalk-race-plan",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Signal K webapp showing each leg of the active route for race planning: TWA, target STW from your polar, leg time, time on each tack, ETA at each mark and bearing",
   "keywords": [
     "signalk-webapp",

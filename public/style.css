@@ -99,6 +99,22 @@ h1 { margin: 0; font-size: 1.5em; }
 .sub { font-size: 0.7em; font-weight: normal; color: var(--muted); text-transform: none; }
 .sub.warn { color: var(--warn); font-weight: 600; }
 .summary { font-size: 1.2em; margin: 2px 0; }
+
+/* Live indicators: dot pulses on each update, age counts up between them */
+.live { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.75em; color: var(--muted); margin: 2px 0; }
+.live-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.live-item .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.live-item.fresh .dot { background: var(--stbd); }
+.live-item.slow .dot, .live-item.override .dot { background: var(--warn); }
+.live-item.slow .age, .live-item.override .age { color: var(--warn); }
+.live-item.stale .dot { background: var(--port); }
+.live-item.stale .age { color: var(--port); font-weight: 600; }
+.dot.pulse { animation: pulse 0.6s ease-out; }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 var(--stbd); transform: scale(1.4); }
+  100% { box-shadow: 0 0 0 6px transparent; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .dot.pulse { animation: none; } }
 .summary .sub { font-size: 0.6em; }
 
 .muted { color: var(--muted); }
