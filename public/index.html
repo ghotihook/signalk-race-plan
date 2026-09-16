@@ -10,13 +10,37 @@
   <header>
     <div>
       <h1 id="routeName">Race Plan</h1>
-      <div id="status" class="muted">Connecting…</div>
+      <div id="status" class="muted"></div>
+      <div id="conn" class="warn">Connecting…</div>
+      <div id="polarStatus" class="warn" hidden></div>
     </div>
     <div class="wind">
-      <div><span class="muted">TWD live</span> <strong id="twdLive">--</strong></div>
-      <label><span class="muted">TWD override</span>
-        <input id="twdOverride" type="number" min="0" max="359" step="1" placeholder="auto">
-      </label>
+      <div class="wind-group">
+        <div id="twdLiveTile" class="wind-tile">
+          <div class="wind-label">TWD Signal K <span class="in-use-tag">In use</span></div>
+          <div id="twdLive" class="wind-value">--</div>
+        </div>
+        <div id="twdOverrideTile" class="wind-tile override">
+          <label class="wind-label" for="twdOverride">TWD override <span class="in-use-tag">In use</span></label>
+          <div class="wind-value">
+            <input id="twdOverride" type="number" min="0" max="359" step="1" placeholder="off">
+            <button id="twdClear" type="button" aria-label="Clear TWD override">&times;</button>
+          </div>
+        </div>
+      </div>
+      <div class="wind-group">
+        <div id="twsLiveTile" class="wind-tile">
+          <div class="wind-label">TWS Signal K <span class="in-use-tag">In use</span></div>
+          <div id="twsLive" class="wind-value">--</div>
+        </div>
+        <div id="twsOverrideTile" class="wind-tile override">
+          <label class="wind-label" for="twsOverride">TWS override (kn) <span class="in-use-tag">In use</span></label>
+          <div class="wind-value">
+            <input id="twsOverride" type="number" min="0" step="0.5" placeholder="off">
+            <button id="twsClear" type="button" aria-label="Clear TWS override">&times;</button>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -28,9 +52,9 @@
           <th>Leg</th>
           <th class="num">BRG</th>
           <th class="num">DIST</th>
-          <th class="num">TWA</th>
+          <th class="num">TWA <span id="twaSource"></span></th>
           <th>Sail cfg</th>
-          <th class="num">STW</th>
+          <th class="num">STW <span id="stwSource"></span></th>
           <th class="num">Leg time</th>
         </tr>
       </thead>

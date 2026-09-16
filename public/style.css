@@ -6,6 +6,9 @@
   --active: #1f3a5f;
   --port: #ff6b6b;
   --stbd: #4cd97b;
+  --warn: #f0b429;
+  --warn-bg: #3d2e05;
+  --accent: #58a6ff;
 }
 
 @media (prefers-color-scheme: light) {
@@ -17,10 +20,14 @@
     --active: #dbeafe;
     --port: #c62828;
     --stbd: #1b7f3b;
+    --warn: #8a5a00;
+    --warn-bg: #fff4d6;
+    --accent: #0969da;
   }
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -42,18 +49,58 @@ header {
 
 h1 { margin: 0; font-size: 1.5em; }
 
-.wind { display: flex; flex-direction: column; gap: 6px; text-align: right; }
-.wind input {
-  width: 5em;
-  font-size: 1em;
+.wind, .wind-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.wind { gap: 16px; }
+
+/* Signal K and override values are always both shown; the one in use is outlined and tagged */
+.wind-tile {
+  min-width: 9em;
+  padding: 6px 10px;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  opacity: 0.55;
+}
+.wind-tile:focus-within { opacity: 1; }
+.wind-tile.in-use { opacity: 1; border-color: var(--accent); }
+.wind-tile.override.in-use { border-color: var(--warn); background: var(--warn-bg); }
+
+.wind-label { display: block; font-size: 0.75em; color: var(--muted); text-transform: uppercase; }
+.in-use-tag {
+  display: none;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+}
+.wind-tile.in-use .in-use-tag { display: inline-block; }
+.wind-tile.override .in-use-tag { background: var(--warn); }
+
+.wind-value { display: flex; align-items: center; gap: 4px; font-size: 1.5em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wind-value input {
+  width: 3.5em;
+  font: inherit;
   background: transparent;
   color: var(--fg);
   border: 1px solid var(--line);
   border-radius: 4px;
-  padding: 2px 6px;
+  padding: 0 4px;
 }
+.wind-value button {
+  font-size: 0.7em;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+#twaSource, #stwSource { text-transform: none; }
+.mode { font-size: 0.75em; color: var(--muted); }
 
 .muted { color: var(--muted); }
+.warn { color: var(--warn); font-weight: 600; }
+.stale { color: var(--muted); }
 .center { text-align: center; }
 
 main { overflow-x: auto; }
