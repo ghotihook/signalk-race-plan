@@ -6,6 +6,7 @@
   "keywords": [
     "signalk-node-server-plugin",
     "signalk-webapp",
+    "signalk-plugin-enabled-by-default",
     "signalk-category-utility"
   ],
   "signalk": {
