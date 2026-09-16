@@ -4,12 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Race Plan</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
     <div>
       <h1 id="routeName">Race Plan</h1>
+      <div id="summary" class="summary"></div>
       <div id="status" class="muted"></div>
       <div id="conn" class="warn">Connecting…</div>
       <div id="polarStatus" class="warn" hidden></div>
@@ -49,14 +51,14 @@
     <table>
       <thead>
         <tr>
-          <th>#</th>
-          <th>Leg</th>
-          <th class="num">BRG <span id="brgSource"></span></th>
-          <th class="num">DIST</th>
-          <th class="num">TWA <span id="twaSource"></span></th>
-          <th class="num">STW <span id="stwSource"></span></th>
-          <th class="num">Leg time</th>
+          <th class="leg">Leg</th>
+          <th class="num">TWA<div id="twaSource" class="sub"></div></th>
+          <th class="num">STW<div id="stwSource" class="sub"></div></th>
+          <th class="num">Time</th>
           <th class="num">Port / Stbd</th>
+          <th class="num">ETA</th>
+          <th class="num">BRG<div id="brgSource" class="sub"></div></th>
+          <th class="num">DIST</th>
         </tr>
       </thead>
       <tbody id="legs">

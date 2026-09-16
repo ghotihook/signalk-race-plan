@@ -1,20 +1,22 @@
 # signalk-race-plan
 
-A Signal K webapp that turns the active route into a race plan. For every leg it shows the bearing, distance and true wind angle. With a polar available, it also shows expected boat speed, leg time, and time on each tack or gybe.
+A Signal K webapp that turns the active route into a race plan. For every leg it shows the bearing, distance and true wind angle. With a polar available, it also shows expected boat speed, leg time, time on each tack or gybe, and an ETA at each mark. On the current leg, figures are worked out from the boat's position to the mark.
 
 Use it ashore with a forecast wind to plan the race, or on the water with live wind from your instruments.
 
 ## Example
 
-Wind from 000°T at 12 kn, magnetic variation 12.3°E, with a polar whose best upwind angle is 40° (6.0 kn) and best downwind angle is 150° (7.0 kn). The boat has rounded Windward and is heading to Wing:
+Wind from 000°T at 12 kn, magnetic variation 12.3°E, with a polar whose best upwind angle is 40° (6.0 kn) and best downwind angle is 150° (7.0 kn). At 14:00 the boat has rounded Windward and is 0.4 nm down the 1 nm reach to Wing.
 
-| # | Leg | BRG °M | DIST | TWA | STW | Leg time | Port / Stbd |
-|---|-----|----:|-----:|----:|----:|---------:|------------:|
-| 1 | Start → Windward | 348° | 1.50 nm | 0° S | 6.0 kn tack 40° | 19m 36s | P 9m 48s / S 9m 48s |
-| **2** | **Windward → Wing** | **108°** | **1.00 nm** | **120° P** | **7.8 kn** | **7m 45s** | **P 7m 45s** |
-| 3 | Wing → Leeward | 228° | 1.00 nm | 120° S | 7.8 kn | 7m 45s | S 7m 45s |
-| 4 | Leeward → Windward | 318° | 1.50 nm | 30° S | 6.0 kn tack 40° | 16m 58s | P 2m 39s / S 14m 19s |
-| 5 | Windward → Finish | 168° | 2.00 nm | 180° S | 7.0 kn gybe 150° | 19m 48s | P 9m 54s / S 9m 54s |
+Header summary: **Finish 14:49** · 49m to go (5.10 nm to go · Course 7.00 nm · 1h 12m)
+
+| Leg | TWA | STW | Time | Port / Stbd | ETA | BRG °M | DIST |
+|-----|----:|----:|-----:|------------:|----:|-------:|-----:|
+| 1 Start → Windward | 0° S | 6.0 kn<br>*beat 40°* | 20m | P 10m / S 10m | | 348° | 1.50 nm |
+| **2 Boat → Wing**<br>*leg 1.00 nm · 8m* | **120° P** | **7.8 kn** | **5m** | **P 5m** | **14:05** | **108°** | **0.60 nm** |
+| 3 Wing → Leeward | 120° S | 7.8 kn | 8m | S 8m | 14:12 | 228° | 1.00 nm |
+| 4 Leeward → Windward | 30° S | 6.0 kn<br>*beat 40°* | 17m | P 3m / S 14m | 14:29 | 318° | 1.50 nm |
+| 5 Windward → Finish | 180° S | 7.0 kn<br>*run 150°* | 20m | P 10m / S 10m | 14:49 | 168° | 2.00 nm |
 
 On the page:
 
@@ -25,26 +27,30 @@ On the page:
 Reading the example:
 
 - **Leg 1** is dead upwind. It's sailed as a beat at 40° on each tack, so time is split evenly between the tacks.
+- **Leg 2** is the current leg, so it runs from the boat to Wing: 0.60 nm and 5m to go. The full mark-to-mark leg is shown underneath for reference.
 - **Legs 2 and 3** are reaches, sailed directly on one tack at the polar speed for 120°.
 - **Leg 4** is 30° off the wind with the wind on starboard. It's still a beat, but mostly on starboard tack, with a short port hitch.
 - **Leg 5** is dead downwind. It's sailed as a run at 150° on each gybe, again split evenly.
+- **ETAs** add up from now: 14:00 + 4m 39s at Wing (14:05), + 7m 45s at Leeward (14:12), and so on to the finish.
 
-Above the table, the header shows the route name, the next mark ("Heading to Wing") and the wind inputs described below.
+Above the table, the header shows the route name, the next mark ("Heading to Wing"), the finish summary and the wind inputs described below.
 
 ## Columns
 
+Columns are ordered by importance, so a phone shows Leg, TWA, STW and Time without scrolling. The Leg column stays in place as you swipe right to see the rest.
+
 | Column | What it shows |
 |--------|---------------|
-| **#** | Leg number |
-| **Leg** | `From → To`, using waypoint names from the route. Falls back to `WP1`, `WP2`, … |
-| **BRG** | Great-circle bearing from mark to mark, in degrees **magnetic**: what the compass shows. Converted from true using `navigation.magneticVariation`, and the header shows the variation used, e.g. `BRG °M (var 12.3°E)`. If no variation is available, the true bearing is shown and the header warns `°T (no variation)` |
-| **DIST** | Great-circle distance from mark to mark, in nautical miles |
-| **TWA** | TWD − true leg bearing. `S` means the wind is on the starboard side when sailing the leg, `P` port. It's coloured green (S) or red (P) when the leg can be sailed directly. On tack/gybe legs it isn't coloured, because both sides are sailed |
-| **STW** | Expected boat speed from the polar at the leg's TWA. If the leg is tighter than the polar's beat angle, it shows the target upwind speed with `tack <angle>`. If it's deeper than the run angle, it shows the target downwind speed with `gybe <angle>` |
-| **Leg time** | Leg distance ÷ speed made good along the leg. That's STW for a direct leg, and target VMG ÷ cos(TWA) for a tack/gybe leg |
-| **Port / Stbd** | Time on each tack or gybe. A direct leg puts all its time on one side. A tack/gybe leg is split by resolving it along and across the wind: dead upwind or downwind is 50/50, and the closer the mark is to the layline, the more time goes on one side. A side with under 1% of the leg time is left out |
+| **Leg** | Leg number and `From → To`, using waypoint names from the route. Falls back to `WP1`, `WP2`, … On the current leg it's `Boat → To` (see [During the race](#during-the-race)) |
+| **TWA** | TWD − true leg bearing. `S` means the wind is on the starboard side when sailing the leg, `P` port. It's coloured green (S) or red (P) when the leg can be sailed directly. On beat/run legs it isn't coloured, because both sides are sailed. Without a polar the app can't tell which legs are beats or runs, so every TWA is coloured |
+| **STW** | Target boat speed from the polar. On a direct leg it's the speed at the leg's TWA. If the leg is tighter than the polar's beat angle, it's the upwind target with `beat <angle>` underneath; if it's deeper than the run angle, the downwind target with `run <angle>` underneath |
+| **Time** | Leg distance ÷ speed made good along the leg, in whole minutes. Speed made good is STW for a direct leg, and target VMG ÷ \|cos(TWA)\| for a beat/run leg |
+| **Port / Stbd** | Time on each tack or gybe. A direct leg puts all its time on one side. A beat/run leg is split by resolving it along and across the wind: dead upwind or downwind is 50/50, and the closer the mark is to the layline, the more time goes on one side. A side with under 1% of the leg time is left out |
+| **ETA** | Clock time at the mark (nearest minute), adding leg times from now. Blank for sailed legs. Needs a fresh position |
+| **BRG** | Great-circle bearing to the mark, in degrees **magnetic**: what the compass shows. Converted from true using `navigation.magneticVariation`; the header shows the variation used, e.g. `°M var 12.3°E`. If no variation is available, the true bearing is shown and the header warns `°T no variation` |
+| **DIST** | Great-circle distance to the mark, in nautical miles |
 
-The TWA and STW column headers show the wind used, e.g. `TWA (Signal K 0°)` or `STW (override 14.0 kn)`.
+Under the TWA and STW headers is the wind in use: `SK 0°` for Signal K, or `override 200°` in amber.
 
 ## Wind: Signal K or override
 
@@ -60,6 +66,22 @@ The header has two pairs of boxes, one pair for TWD and one for TWS. Each pair s
 - **Overrides:** type a value to plan with a forecast. The override box turns amber and is tagged **In use**. Press **×** to clear it and go back to Signal K.
 - **Saved per browser:** overrides are kept in that browser across reloads. The amber box is the reminder that one is set.
 
+## During the race
+
+With a position from `navigation.position` less than 15 s old:
+
+- **Current leg:** the row is worked out from the boat to the mark (`Boat → Wing`). Bearing, distance, TWA, STW, time and port/stbd are all what's left to sail from where you are. The full mark-to-mark leg is shown underneath in small text.
+- **Laylines:** on a beat, port/stbd shows how much of each tack is left. When one side disappears (e.g. just `S 5m`), you're on that layline. If you overstand, the TWA to the mark widens past the beat angle and the leg becomes a direct reach.
+- **ETA and finish:** each mark's ETA adds the leg times from now. The header summary shows the finish time, distance and time to go, plus the whole course distance and time.
+- **Before the start:** while heading to the first point of the route, an extra `Boat → Start` row is added. If [signalk-racer](https://github.com/gregw/signalk-racer) publishes `navigation.racing.startTime`, the ETAs assume you don't leave the start before the gun.
+
+**No position, or position older than 15 s:**
+- All legs show mark to mark.
+- ETAs show `--`, and the header says `No position: remaining and ETA unavailable`.
+- The course total is still shown, which is what you want when planning ashore.
+
+**Missing leg times:** if any leg's time is unknown (no wind, no polar), the ETA at that mark and every later mark shows `--`, as does the finish time.
+
 ## Route progress
 
 - **Which route:** the page always shows the route that is active in the Signal K Course API. It updates when a different route is activated or reversed.
@@ -71,7 +93,9 @@ The header has two pairs of boxes, one pair for TWD and one for TWS. Each pair s
 | Message | Meaning |
 |---------|---------|
 | `No active route` | No route is active in the Course API |
-| `BRG °T (no variation)` | Nothing publishes `navigation.magneticVariation`, so bearings are shown true, not magnetic |
+| `No position: remaining and ETA unavailable` | No `navigation.position` in the last 15 s. Legs are shown mark to mark |
+| `Course API unavailable: …` | The Course API request failed |
+| `°T no variation` (under BRG) | Nothing publishes `navigation.magneticVariation`, so bearings are shown true, not magnetic |
 | `Disconnected, retrying…` | The data connection to the server dropped. It reconnects every 3 s |
 | `Polar: No active polar selected` | The polar plugin is running but no polar is active |
 | `Polar plugin not reachable (…)` | The polar plugin isn't installed or running, or you aren't logged in on a secured server |
@@ -84,24 +108,30 @@ While any polar message is showing, STW, leg time and port/stbd show `--`, and R
 - **Signal K server 2.x**, for the v2 Course and Resources APIs.
 - **An active route**, e.g. created and activated in Freeboard-SK.
 - **True wind data** (see above), or overrides.
+- **Position** (`navigation.position`) for remaining distance, time and ETAs.
+- **Magnetic variation** (`navigation.magneticVariation`) for magnetic bearings and the magnetic TWD fallback. Optional.
+- **Start time** (`navigation.racing.startTime` from signalk-racer). Optional.
 - **For STW, leg time and port/stbd:**
   - [signalk-polar-performance-plugin](https://github.com/htool/signalk-polar-performance-plugin)
   - A polar made active through a polar resource provider such as [signalk-polar-management](https://github.com/Asw1n/signalk-polar-management)
   - Race Plan reads the curve for the TWS in use from `/plugins/signalk-polar-performance-plugin/polar/queries/curve`. The performance factor is already applied.
 
-## Install (development)
+## Install
+
+In the Signal K admin UI, open **Appstore → Available**, find **Race Plan** and install it. Restart the server, then open **Webapps → Race Plan** (`/signalk-race-plan/`). It's a plain webapp with nothing to enable or configure.
+
+For development, install from a local checkout:
 
 ```sh
 cd ~/.signalk
 npm install /path/to/signalk-race-plan
 ```
 
-Restart the server, then open **Webapps → Race Plan** (`/signalk-race-plan/`). It's a plain webapp with nothing to enable or configure.
-
 ## Limitations
 
 - **Polar only:** figures don't include current, leeway, tacking or gybing losses, or wind shifts along a leg.
 - **Fewest boards:** the port/stbd split assumes one tack or gybe each way, not how often you'd actually tack.
-- **Mark to mark:** leg figures for the current leg cover the whole leg, not what's left from the boat's position.
+- **Straight line from the boat:** the current leg is measured straight from the boat to the mark, ignoring obstructions.
+- **Same wind for every leg:** ETAs for later legs assume the current wind holds for the rest of the race.
 - **Variation:** magnetic bearings use the boat's current variation for every leg, which is fine for a race course but not for a long passage. Compass deviation isn't applied.
 - **Route edits:** if you move or add marks in the active route, reload the page to see them. Race Plan only refetches the route when a different route is activated or the direction is reversed.

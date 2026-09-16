@@ -26,6 +26,10 @@
     headingAt: 0,
     directionTrueAt: 0, // last time environment.wind.directionTrue arrived
     directionMagneticAt: 0, // last time directionMagnetic + variation gave a TWD
+    position: null, // { lat, lon }
+    positionAt: 0,
+    startTime: null, // ms, from signalk-racer's navigation.racing.startTime
+    startTimeAt: 0,
     variation: null // degrees, east positive; changes slowly so it never goes stale
   }
 
@@ -264,6 +268,7 @@
 
   const fmtTwd = (d) => `${norm360(Math.round(d))}°`
   const fmtTws = (kn) => `${kn.toFixed(1)} kn`
+  const fmtClock = (ms) => new Date(ms + 30000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) // nearest minute
 
   // Shows the Signal K and override tiles for one wind quantity, marks the
   // one in use, and returns the value in use plus a label naming its source.
@@ -283,8 +288,8 @@
     $(`${key}Clear`).hidden = !usingOverride
 
     const value = usingOverride ? override : live
-    const label = value === null ? '' : `(${usingOverride ? 'override' : 'Signal K'} ${fmt(value)})`
-    return { value, label }
+    const label = value === null ? '' : `${usingOverride ? 'override' : 'SK'} ${fmt(value)}`
+    return { value, label, usingOverride }
   }
 
   // On tack/gybe legs both boards are sailed, so the side isn't coloured
@@ -295,12 +300,13 @@
     return `<span class="${side}">${Math.round(Math.abs(twa))}° ${label}</span>`
   }
 
+  // Whole minutes: the polar model isn't accurate to the second
   function fmtDuration (hours) {
-    const s = Math.round(hours * 3600)
-    const h = Math.floor(s / 3600)
-    const m = Math.floor((s % 3600) / 60)
-    if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`
-    return `${m}m ${String(s % 60).padStart(2, '0')}s`
+    const total = Math.round(hours * 60)
+    if (total < 1) return '<1m'
+    const h = Math.floor(total / 60)
+    const m = total % 60
+    return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`
   }
 
   // Time on each board; a board under 1% of the leg is left out
@@ -320,15 +326,17 @@
     $('twdVia').textContent = state.twdVia || ''
     const tws = renderSource('tws', state.twsLive, state.twsAt, fmtTws)
     $('twaSource').textContent = twd.label
+    $('twaSource').classList.toggle('warn', twd.usingOverride)
     $('stwSource').textContent = tws.label
+    $('stwSource').classList.toggle('warn', tws.usingOverride)
 
     // Bearings are shown magnetic (what the compass reads); TWA is still
     // worked out from the true bearing
     const variation = state.variation
     const brgSource = $('brgSource')
     brgSource.textContent = variation === null
-      ? '°T (no variation)'
-      : `°M (var ${Math.abs(variation).toFixed(1)}°${variation >= 0 ? 'E' : 'W'})`
+      ? '°T no variation'
+      : `°M var ${Math.abs(variation).toFixed(1)}°${variation >= 0 ? 'E' : 'W'}`
     brgSource.classList.toggle('warn', variation === null)
 
     ensurePolar(tws.value)
@@ -340,43 +348,99 @@
     const route = state.route
     if (!route || route.points.length < 2) {
       $('routeName').textContent = 'Race Plan'
+      $('summary').textContent = ''
       tbody.innerHTML = '<tr><td colspan="8" class="muted center">No active route</td></tr>'
       return
     }
-
     $('routeName').textContent = route.name
-    const rows = []
-    for (let i = 0; i < route.points.length - 1; i++) {
-      const from = route.points[i]
-      const to = route.points[i + 1]
+
+    // Everything for one leg, from any point (a mark or the boat) to a mark
+    const leg = (from, to) => {
       const brg = bearing(from, to)
       const dist = distanceNm(from, to)
       const twa = twd.value === null ? null : norm180(twd.value - brg)
       const perf = twa !== null && curve ? legPerformance(curve, twa) : null
+      const hours = perf && perf.made > 0 ? dist / perf.made : null
+      return { from, to, brg, dist, twa, perf, hours }
+    }
+
+    // Remaining figures and ETAs are only worked out from a fresh position.
+    // ETAs add up leg by leg, so once one leg time is unknown every later
+    // ETA is too.
+    const now = Date.now()
+    const boat = state.position && fresh(state.positionAt)
+      ? { ...state.position, name: 'Boat' }
+      : null
+    const startTime = state.startTime !== null && fresh(state.startTimeAt) ? state.startTime : null
+    let clock = boat ? now : null
+    const advance = (hours) => { clock = clock !== null && hours !== null ? clock + hours * 3600000 : null }
+
+    const rows = []
+    let courseNm = 0
+    let courseHours = 0
+    let toGoNm = 0
+
+    // Heading to the first point: add the boat's leg to it, and don't leave
+    // it before the start time if one is published
+    if (boat && route.pointIndex === 0) {
+      const l = leg(boat, route.points[0])
+      advance(l.hours)
+      if (clock !== null && startTime !== null && startTime > clock) clock = startTime
+      toGoNm += l.dist
+      rows.push(rowHtml('&ndash;', 'active', l, '', clock))
+    }
+
+    for (let i = 0; i < route.points.length - 1; i++) {
+      const full = leg(route.points[i], route.points[i + 1])
+      courseNm += full.dist
+      courseHours = courseHours !== null && full.hours !== null ? courseHours + full.hours : null
 
       // pointIndex is the destination point, so the active leg ends at it
       const legEnd = i + 1
-      const cls = legEnd < route.pointIndex ? 'done' : legEnd === route.pointIndex ? 'active' : ''
-
-      const stwCell = perf
-        ? `${perf.stw.toFixed(1)} kn${perf.mode === 'direct' ? '' : ` <span class="mode">${perf.mode} ${Math.round(perf.angle)}°</span>`}`
-        : '<span class="placeholder">--</span>'
-      const hours = perf && perf.made > 0 ? dist / perf.made : null
-      const timeCell = hours !== null ? fmtDuration(hours) : '<span class="placeholder">--</span>'
-      const boardsCell = hours !== null ? fmtBoards(hours, perf.stbdShare) : '<span class="placeholder">--</span>'
-
-      rows.push(`<tr class="${cls}">
-        <td>${i + 1}</td>
-        <td>${escapeHtml(from.name)} &rarr; ${escapeHtml(to.name)}</td>
-        <td class="num">${norm360(Math.round(brg - (variation ?? 0))).toString().padStart(3, '0')}°</td>
-        <td class="num">${dist.toFixed(2)} nm</td>
-        <td class="num">${fmtTwa(twa, perf !== null && perf.mode !== 'direct')}</td>
-        <td class="num">${stwCell}</td>
-        <td class="num">${timeCell}</td>
-        <td class="num">${boardsCell}</td>
-      </tr>`)
+      if (legEnd < route.pointIndex) {
+        rows.push(rowHtml(i + 1, 'done', full, '', null))
+      } else if (legEnd === route.pointIndex && boat) {
+        const l = leg(boat, full.to)
+        advance(l.hours)
+        toGoNm += l.dist
+        const sub = `leg ${full.dist.toFixed(2)} nm` + (full.hours !== null ? ` &middot; ${fmtDuration(full.hours)}` : '')
+        rows.push(rowHtml(i + 1, 'active', l, sub, clock))
+      } else {
+        advance(full.hours)
+        toGoNm += full.dist
+        rows.push(rowHtml(i + 1, legEnd === route.pointIndex ? 'active' : '', full, '', clock))
+      }
     }
     tbody.innerHTML = rows.join('')
+
+    const course = `Course ${courseNm.toFixed(2)} nm` + (courseHours !== null ? ` &middot; ${fmtDuration(courseHours)}` : '')
+    let summary
+    if (!boat) summary = `${course} &middot; <span class="warn">No position: remaining and ETA unavailable</span>`
+    else if (clock === null) summary = `${course} &middot; ${toGoNm.toFixed(2)} nm to go &middot; Finish --`
+    else summary = `<strong>Finish ${fmtClock(clock)}</strong> &middot; ${fmtDuration((clock - now) / 3600000)} to go<div class="sub">${toGoNm.toFixed(2)} nm to go &middot; ${course}</div>`
+    $('summary').innerHTML = summary
+
+    function rowHtml (num, cls, l, sub, eta) {
+      const { perf, hours } = l
+      const none = '<span class="placeholder">--</span>'
+      // Target speed, with the beat/run angle underneath when the leg needs one
+      const stwCell = perf
+        ? `${perf.stw.toFixed(1)} kn${perf.mode === 'direct' ? '' : `<div class="sub">${perf.mode === 'tack' ? 'beat' : 'run'} ${Math.round(perf.angle)}°</div>`}`
+        : none
+      const etaCell = cls === 'done' ? '' : eta !== null ? fmtClock(eta) : none
+      // Most important first so a phone shows them without scrolling:
+      // leg, TWA, target STW, time, then port/stbd, ETA, bearing, distance
+      return `<tr class="${cls}">
+        <td class="leg"><span class="leg-no">${num}</span> ${escapeHtml(l.from.name)} &rarr; ${escapeHtml(l.to.name)}${sub ? `<div class="sub">${sub}</div>` : ''}</td>
+        <td class="num">${fmtTwa(l.twa, perf !== null && perf.mode !== 'direct')}</td>
+        <td class="num">${stwCell}</td>
+        <td class="num">${hours !== null ? fmtDuration(hours) : none}</td>
+        <td class="num">${hours !== null ? fmtBoards(hours, perf.stbdShare) : none}</td>
+        <td class="num">${etaCell}</td>
+        <td class="num">${norm360(Math.round(l.brg - (variation ?? 0))).toString().padStart(3, '0')}°</td>
+        <td class="num">${l.dist.toFixed(2)} nm</td>
+      </tr>`
+    }
   }
 
   // ---- stream -----------------------------------------------------------
@@ -396,6 +460,8 @@
           { path: 'environment.wind.speedTrue', period: 1000 },
           { path: 'navigation.headingTrue', period: 1000 },
           { path: 'navigation.magneticVariation', period: 10000 },
+          { path: 'navigation.position', period: 1000 },
+          { path: 'navigation.racing.startTime', period: 1000 },
           { path: 'navigation.course.activeRoute', policy: 'instant' }
         ]
       }))
@@ -426,6 +492,15 @@
           } else if (path === 'navigation.magneticVariation' && typeof value === 'number') {
             if (state.variation === null) redraw = true
             state.variation = deg(value)
+          } else if (path === 'navigation.position' && value &&
+              typeof value.latitude === 'number' && typeof value.longitude === 'number') {
+            state.position = { lat: value.latitude, lon: value.longitude }
+            state.positionAt = Date.now()
+            redraw = true
+          } else if (path === 'navigation.racing.startTime') {
+            const t = typeof value === 'string' ? Date.parse(value) : NaN
+            state.startTime = isNaN(t) ? null : t
+            state.startTimeAt = Date.now()
           } else if (path === 'navigation.headingTrue' && typeof value === 'number') {
             state.heading = deg(value)
             state.headingAt = Date.now()

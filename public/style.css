@@ -96,8 +96,10 @@ h1 { margin: 0; font-size: 1.5em; }
   border-radius: 4px;
   cursor: pointer;
 }
-#brgSource, #twaSource, #stwSource { text-transform: none; }
-.mode { font-size: 0.75em; color: var(--muted); }
+.sub { font-size: 0.7em; font-weight: normal; color: var(--muted); text-transform: none; }
+.sub.warn { color: var(--warn); font-weight: 600; }
+.summary { font-size: 1.2em; margin: 2px 0; }
+.summary .sub { font-size: 0.6em; }
 
 .muted { color: var(--muted); }
 .warn { color: var(--warn); font-weight: 600; }
@@ -108,12 +110,39 @@ main { overflow-x: auto; }
 
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-th { text-align: left; font-size: 0.8em; color: var(--muted); text-transform: uppercase; }
+th { text-align: left; font-size: 0.8em; color: var(--muted); text-transform: uppercase; vertical-align: bottom; }
+.leg-no { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Leg stays in view while the rest of the table scrolls sideways */
+.leg {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg);
+  box-shadow: inset -1px 0 0 var(--line);
+}
+tr.active .leg { background: var(--active); }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 
-tr.done { opacity: 0.4; }
+/* Dim sailed legs per cell: row opacity would make the sticky leg cell see-through */
+tr.done td:not(.leg) { opacity: 0.4; }
+tr.done .leg { color: var(--muted); }
 tr.active { background: var(--active); font-weight: 600; }
 
 .port { color: var(--port); }
 .stbd { color: var(--stbd); }
 .placeholder { color: var(--muted); }
+
+/* Phones: smaller text, tighter cells, leg names wrap, compact wind boxes */
+@media (max-width: 600px) {
+  body { font-size: 16px; padding: 10px; }
+  th, td { padding: 8px 5px; }
+  .leg { white-space: normal; min-width: 7em; max-width: 9.5em; }
+  header { gap: 8px; margin-bottom: 10px; }
+  header > div:first-child { width: 100%; }
+  .wind { width: 100%; gap: 6px; }
+  .wind-group { width: 100%; flex-wrap: nowrap; gap: 6px; }
+  .wind-tile { flex: 1; min-width: 0; padding: 3px 6px; }
+  .wind-label { font-size: 0.65em; }
+  .wind-value { font-size: 1.15em; }
+}
