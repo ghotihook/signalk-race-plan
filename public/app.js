@@ -170,25 +170,34 @@
     return points.length ? points[points.length - 1].tbs : null
   }
 
-  // Expected boat speed and speed made good along a leg at the given TWA.
-  // Legs tighter than the beat angle (or deeper than the run angle) are
-  // sailed at that angle on both tacks/gybes; along the leg that gives
-  // target VMG / cos(angle between wind axis and leg).
+  // Two-board leg sailed at TWA ±angle (both in rad, twa signed, + = stbd).
+  // Resolving the leg along and across the wind axis gives, per unit of
+  // distance / boat speed:
+  //   total time         cos(twa) / cos(angle)
+  //   stbd − port time   sin(twa) / sin(angle)
+  // so speed along the leg is tbs·cos(angle)/cos(twa).
+  function twoBoard (tbs, angle, twa, mode) {
+    const total = Math.cos(twa) / Math.cos(angle)
+    const diff = Math.sin(twa) / Math.sin(angle)
+    const stbdShare = Math.min(1, Math.max(0, (total + diff) / (2 * total)))
+    return { stw: tbs * KN_PER_MS, made: (tbs / total) * KN_PER_MS, mode, angle: deg(angle), stbdShare }
+  }
+
+  // Expected boat speed, speed made good along the leg, and the share of the
+  // leg spent on starboard, at the given signed TWA. Legs tighter than the
+  // beat angle (or deeper than the run angle) are sailed at that angle on
+  // both tacks/gybes.
   function legPerformance (curve, twaDeg) {
-    const a = rad(Math.abs(twaDeg))
+    const twa = rad(twaDeg)
+    const a = Math.abs(twa)
     const { beat, run, points } = curve
 
-    if (beat && beat.tbs > 0 && a < beat.twa) {
-      const vmg = beat.tbs * Math.cos(beat.twa)
-      return { stw: beat.tbs * KN_PER_MS, made: (vmg / Math.cos(a)) * KN_PER_MS, mode: 'tack', angle: deg(beat.twa) }
-    }
-    if (run && run.tbs > 0 && a > run.twa) {
-      const vmg = run.tbs * -Math.cos(run.twa)
-      return { stw: run.tbs * KN_PER_MS, made: (vmg / -Math.cos(a)) * KN_PER_MS, mode: 'gybe', angle: deg(run.twa) }
-    }
+    if (beat && beat.tbs > 0 && a < beat.twa) return twoBoard(beat.tbs, beat.twa, twa, 'tack')
+    if (run && run.tbs > 0 && a > run.twa) return twoBoard(run.tbs, run.twa, twa, 'gybe')
+
     const tbs = tbsAt(points, a)
     if (!(tbs > 0)) return null
-    return { stw: tbs * KN_PER_MS, made: tbs * KN_PER_MS, mode: 'direct' }
+    return { stw: tbs * KN_PER_MS, made: tbs * KN_PER_MS, mode: 'direct', stbdShare: twa >= 0 ? 1 : 0 }
   }
 
   // ---- wind -------------------------------------------------------------
@@ -255,9 +264,10 @@
     return { value, label }
   }
 
-  function fmtTwa (twa) {
+  // On tack/gybe legs both boards are sailed, so the side isn't coloured
+  function fmtTwa (twa, twoBoards) {
     if (twa === null) return '<span class="placeholder">--</span>'
-    const side = twa >= 0 ? 'stbd' : 'port'
+    const side = twoBoards ? '' : twa >= 0 ? 'stbd' : 'port'
     const label = twa >= 0 ? 'S' : 'P'
     return `<span class="${side}">${Math.round(Math.abs(twa))}° ${label}</span>`
   }
@@ -268,6 +278,14 @@
     const m = Math.floor((s % 3600) / 60)
     if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`
     return `${m}m ${String(s % 60).padStart(2, '0')}s`
+  }
+
+  // Time on each board; a board under 1% of the leg is left out
+  function fmtBoards (hours, stbdShare) {
+    const parts = []
+    if (stbdShare < 0.99) parts.push(`<span class="port">P ${fmtDuration(hours * (1 - stbdShare))}</span>`)
+    if (stbdShare > 0.01) parts.push(`<span class="stbd">S ${fmtDuration(hours * stbdShare)}</span>`)
+    return parts.join(' / ')
   }
 
   function escapeHtml (s) {
@@ -289,7 +307,7 @@
     const route = state.route
     if (!route || route.points.length < 2) {
       $('routeName').textContent = 'Race Plan'
-      tbody.innerHTML = '<tr><td colspan="8" class="muted center">No active route</td></tr>'
+      tbody.innerHTML = '<tr><td colspan="9" class="muted center">No active route</td></tr>'
       return
     }
 
@@ -310,19 +328,20 @@
       const stwCell = perf
         ? `${perf.stw.toFixed(1)} kn${perf.mode === 'direct' ? '' : ` <span class="mode">${perf.mode} ${Math.round(perf.angle)}°</span>`}`
         : '<span class="placeholder">--</span>'
-      const timeCell = perf && perf.made > 0
-        ? fmtDuration(dist / perf.made)
-        : '<span class="placeholder">--</span>'
+      const hours = perf && perf.made > 0 ? dist / perf.made : null
+      const timeCell = hours !== null ? fmtDuration(hours) : '<span class="placeholder">--</span>'
+      const boardsCell = hours !== null ? fmtBoards(hours, perf.stbdShare) : '<span class="placeholder">--</span>'
 
       rows.push(`<tr class="${cls}">
         <td>${i + 1}</td>
         <td>${escapeHtml(from.name)} &rarr; ${escapeHtml(to.name)}</td>
         <td class="num">${Math.round(brg).toString().padStart(3, '0')}°</td>
         <td class="num">${dist.toFixed(2)} nm</td>
-        <td class="num">${fmtTwa(twa)}</td>
+        <td class="num">${fmtTwa(twa, perf !== null && perf.mode !== 'direct')}</td>
         <td class="placeholder">--</td>
         <td class="num">${stwCell}</td>
         <td class="num">${timeCell}</td>
+        <td class="num">${boardsCell}</td>
       </tr>`)
     }
     tbody.innerHTML = rows.join('')
