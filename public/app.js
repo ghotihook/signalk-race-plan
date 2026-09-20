@@ -356,11 +356,14 @@
     else setLive('Polar', polar.error ? 'stale' : 'off', polar.error ? 'error' : '--')
   }
 
-  // Time on each board; a board under 1% of the leg is left out
-  function fmtBoards (hours, stbdShare) {
+  // Time on each board; a board under 1% of the leg is left out. On the leg
+  // from the boat, a board sailing the whole leg is shown to the second so it
+  // ticks down; a split between two boards is a model estimate, not a clock.
+  function fmtBoards (hours, stbdShare, fromBoat) {
     const parts = []
-    if (stbdShare < 0.99) parts.push(`<span class="port">P ${fmtDuration(hours * (1 - stbdShare))}</span>`)
-    if (stbdShare > 0.01) parts.push(`<span class="stbd">S ${fmtDuration(hours * stbdShare)}</span>`)
+    const secs = fromBoat && (stbdShare >= 0.99 || stbdShare <= 0.01)
+    if (stbdShare < 0.99) parts.push(`<span class="port">P ${fmtDuration(hours * (1 - stbdShare), secs)}</span>`)
+    if (stbdShare > 0.01) parts.push(`<span class="stbd">S ${fmtDuration(hours * stbdShare, secs)}</span>`)
     return parts.join(' / ')
   }
 
@@ -588,7 +591,7 @@
     if (!route || route.points.length < 2) {
       $('routeName').textContent = 'Race Plan'
       $('summary').textContent = ''
-      tbody.innerHTML = '<tr><td colspan="8" class="muted center">No active route</td></tr>'
+      tbody.innerHTML = '<tr><td colspan="7" class="muted center">No active route</td></tr>'
       return
     }
     $('routeName').textContent = route.name
@@ -673,8 +676,7 @@
         <td class="leg"><span class="leg-no">${num}</span> ${escapeHtml(l.from.name)} &rarr; ${escapeHtml(l.to.name)}${sub ? `<div class="sub">${sub}</div>` : ''}</td>
         <td class="num">${fmtTwa(l.twa, perf !== null && perf.mode !== 'direct')}</td>
         <td class="num">${stwCell}</td>
-        <td class="num">${hours !== null ? fmtDuration(hours, fromBoat) : none}</td>
-        <td class="num">${hours !== null ? fmtBoards(hours, perf.stbdShare) : none}</td>
+        <td class="num">${hours !== null ? fmtBoards(hours, perf.stbdShare, fromBoat) : none}</td>
         <td class="num">${etaCell}</td>
         <td class="num">${norm360(Math.round(l.brg - (variation ?? 0))).toString().padStart(3, '0')}°</td>
         <td class="num">${l.dist.toFixed(2)} nm</td>
