@@ -4,6 +4,7 @@
   const API = '/signalk/v2/api'
   const POLAR_CURVE = '/plugins/signalk-polar-performance-plugin/polar/queries/curve'
   const OVERRIDE_KEYS = { twd: 'race-plan.twdOverride', tws: 'race-plan.twsOverride' }
+  const MAP_FOCUS_KEY = 'race-plan.mapFocus'
   const WIND_SMOOTHING = 0.1 // EMA factor applied to wind per update
   const STALE_MS = 15000 // wind/heading older than this is not used
   const TWS_BUCKET_KN = 0.2 // polar curve is refetched when TWS moves by this much
@@ -125,7 +126,7 @@
     }
 
     state.route.pointIndex = typeof ar.pointIndex === 'number' ? ar.pointIndex : 0
-    setStatus(`Heading to ${state.route.points[state.route.pointIndex]?.name ?? '?'}`)
+    setStatus('')
     render()
   }
 
@@ -367,6 +368,194 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
   }
 
+  // ---- stepping through the route ---------------------------------------
+
+  // The mark being sailed to is activeRoute.pointIndex in the Course API, the
+  // same value a chart app advances on arrival. Race Plan moves it there, so
+  // every client follows.
+  let stepping = false
+
+  async function stepPoint (delta) {
+    const route = state.route
+    if (!route || stepping) return
+    const next = Math.min(route.points.length - 1, Math.max(0, route.pointIndex + delta))
+    if (next === route.pointIndex) return
+
+    stepping = true
+    route.pointIndex = next // move now, then let the server confirm
+    render()
+
+    let err = null
+    try {
+      const res = await fetch(`${API}/vessels/self/navigation/course/activeRoute/nextPoint`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: delta })
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error((body && body.message) || `${res.status} ${res.statusText}`)
+      }
+    } catch (e) {
+      err = e.message
+    }
+    stepping = false
+    // Whatever happened, the server's pointIndex is the one that counts
+    await loadCourse().catch((e) => { err = err || e.message })
+    if (err) setStatus(`Could not change mark: ${err}`)
+  }
+
+  function renderNav () {
+    const route = state.route
+    const nav = $('courseNav')
+    nav.hidden = !route || route.points.length === 0
+    if (nav.hidden) return
+    const n = route.points.length
+    const i = Math.min(route.pointIndex, n - 1)
+    $('stepName').textContent = `To ${route.points[i].name}`
+    $('stepCount').textContent = `mark ${i + 1} of ${n}`
+    $('prevPoint').disabled = stepping || i === 0
+    $('nextPoint').disabled = stepping || i === n - 1
+  }
+
+  // ---- mini map ---------------------------------------------------------
+
+  // px kept clear around the drawing: mark labels all round, plus room for the
+  // wind arrow on the right and the scale bar below
+  const MAP_PAD = { l: 34, r: 66, t: 34, b: 46 }
+  const MAP_MIN_H = 190
+  const MAP_MAX_H = 420
+  const MAP_MIN_W = 240
+  // Scale bar ladder, metres up close and nautical miles beyond
+  const SCALE_BARS = [50, 100, 200, 500].map((m) => ({ nm: m / 1852, label: `${m} m` }))
+    .concat([0.5, 1, 2, 5, 10, 20, 50, 100, 200].map((nm) => ({ nm, label: `${nm} nm` })))
+  let mapFocus = 'route' // or 'leg': fit the map to the leg being sailed
+
+  // Equirectangular about the middle of what's shown: over a race course the
+  // distortion is far smaller than the width of the lines drawn. Units are
+  // degrees of latitude, so 1 unit is 60 nm in both directions.
+  function geoBounds (pts) {
+    const lat0 = pts.reduce((sum, p) => sum + p.lat, 0) / pts.length
+    const k = Math.cos(rad(lat0))
+    const xs = pts.map((p) => p.lon * k)
+    const ys = pts.map((p) => -p.lat)
+    const b = { k, minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) }
+    b.spanX = b.maxX - b.minX
+    b.spanY = b.maxY - b.minY
+    return b
+  }
+
+  // The box takes the shape of what it shows, within the width available, so
+  // there's no dead space beside a north/south course or under an east/west one
+  function mapHeight (b, avail) {
+    const inner = avail - MAP_PAD.l - MAP_PAD.r
+    const wanted = b.spanX > 0 ? inner * (b.spanY / b.spanX) + MAP_PAD.t + MAP_PAD.b : MAP_MAX_H
+    return Math.round(Math.max(MAP_MIN_H, Math.min(wanted, MAP_MAX_H)))
+  }
+
+  function mapWidth (b, avail, h) {
+    const inner = h - MAP_PAD.t - MAP_PAD.b
+    const wanted = b.spanY > 0 ? inner * (b.spanX / b.spanY) + MAP_PAD.l + MAP_PAD.r : avail
+    return Math.round(Math.max(MAP_MIN_W, Math.min(wanted, avail)))
+  }
+
+  // lat/lon -> px, with the px per degree of latitude on it as .scale
+  function projector (b, w, h) {
+    const innerW = w - MAP_PAD.l - MAP_PAD.r
+    const innerH = h - MAP_PAD.t - MAP_PAD.b
+    // Points in a line leave a span of zero in one direction
+    const fitX = b.spanX > 0 ? innerW / b.spanX : Infinity
+    const fitY = b.spanY > 0 ? innerH / b.spanY : Infinity
+    const scale = Math.min(fitX, fitY, 6e5) // stops zooming in past ~0.5 nm across
+    const midX = (b.minX + b.maxX) / 2
+    const midY = (b.minY + b.maxY) / 2
+    const to = (p) => ({
+      x: MAP_PAD.l + innerW / 2 + (p.lon * b.k - midX) * scale,
+      y: MAP_PAD.t + innerH / 2 + (-p.lat - midY) * scale
+    })
+    to.scale = scale
+    return to
+  }
+
+  const xy = (p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`
+
+  // North is up. An SVG rotate() of a compass bearing turns a shape drawn
+  // pointing up (-y) to point that way, so bearings are used as they are.
+  function renderMap (twdValue) {
+    const route = state.route
+    const svg = $('map')
+    $('mapSection').hidden = !route || route.points.length === 0
+    if ($('mapSection').hidden) return
+
+    // Measured on the box, not the drawing: the drawing is sized to fit inside it
+    const avail = Math.round($('mapBox').getBoundingClientRect().width)
+    if (!avail) return
+
+    const i = Math.min(route.pointIndex, route.points.length - 1)
+    const target = route.points[i]
+    const boat = state.position && fresh(state.positionAt) ? state.position : null
+    const fitTo = mapFocus === 'leg'
+      ? [boat || route.points[Math.max(0, i - 1)], target]
+      : boat ? route.points.concat([boat]) : route.points
+    const bounds = geoBounds(fitTo)
+    const h = mapHeight(bounds, avail)
+    const w = mapWidth(bounds, avail, h)
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`)
+    svg.setAttribute('width', w)
+    svg.setAttribute('height', h)
+    const to = projector(bounds, w, h)
+    const pts = route.points.map(to)
+    const parts = []
+
+    // The route, with sailed legs dashed and faded
+    for (let j = 0; j < pts.length - 1; j++) {
+      parts.push(`<line class="leg-line${j + 1 < i ? ' done' : ''}" x1="${pts[j].x.toFixed(1)}" y1="${pts[j].y.toFixed(1)}" x2="${pts[j + 1].x.toFixed(1)}" y2="${pts[j + 1].y.toFixed(1)}" />`)
+    }
+
+    // The leg being sailed: from the boat when there's a position, otherwise
+    // from the mark behind, so the mark in use is always obvious
+    const from = boat ? to(boat) : i > 0 ? pts[i - 1] : null
+    if (from) {
+      parts.push(`<line class="to-mark" x1="${from.x.toFixed(1)}" y1="${from.y.toFixed(1)}" x2="${pts[i].x.toFixed(1)}" y2="${pts[i].y.toFixed(1)}" />`)
+    }
+
+    route.points.forEach((p, j) => {
+      const q = pts[j]
+      const isTarget = j === i
+      const cls = isTarget ? ' target' : j < i ? ' done' : ''
+      parts.push(`<circle class="mark${cls}" cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="${isTarget ? 6 : 4.5}" />`)
+      // Labels go to the right of the mark, and flip near the right edge
+      const right = q.x < w - 100
+      const name = p.name.length > 14 ? `${p.name.slice(0, 13)}…` : p.name
+      parts.push(`<text class="label${cls}" x="${(q.x + (right ? 10 : -10)).toFixed(1)}" y="${q.y.toFixed(1)}" dy="0.32em" text-anchor="${right ? 'start' : 'end'}">${escapeHtml(name)}</text>`)
+    })
+
+    if (boat) {
+      // Pointing where the boat is heading, or at the mark if there's no heading
+      const hdg = state.heading !== null && fresh(state.headingAt) ? state.heading : bearing(boat, target)
+      parts.push(`<path class="boat" d="M 0 -11 L 7 9 L 0 5 L -7 9 Z" transform="translate(${xy(to(boat))}) rotate(${hdg.toFixed(1)})" />`)
+    }
+
+    // Wind arrow points the way the wind blows, i.e. away from TWD
+    if (twdValue !== null) {
+      const cx = w - 30
+      const cy = 34
+      parts.push(`<g class="wind-arrow" transform="translate(${cx} ${cy}) rotate(${norm360(twdValue + 180).toFixed(1)})"><line x1="0" y1="14" x2="0" y2="-8" /><path d="M -5 -2 L 0 -14 L 5 -2 Z" /></g>`)
+      parts.push(`<text class="label" x="${cx}" y="${cy + 30}" text-anchor="middle">wind</text>`)
+    }
+
+    // Scale bar: the longest round distance that fits in a third of the width
+    const pxPerNm = to.scale / 60
+    const bar = SCALE_BARS.filter((b) => b.nm * pxPerNm <= w / 3).pop() || SCALE_BARS[0]
+    const y = h - 16
+    parts.push(`<path class="scale" d="M 14 ${y - 5} V ${y} H ${(14 + bar.nm * pxPerNm).toFixed(1)} V ${y - 5}" />`)
+    parts.push(`<text class="label" x="14" y="${y - 9}">${bar.label}</text>`)
+
+    svg.innerHTML = parts.join('')
+    $('mapNote').textContent = boat ? '' : 'No position: the boat is not shown'
+  }
+
   function render () {
     const twd = renderSource('twd', state.twdLive, state.twdAt, fmtTwd)
     $('twdVia').textContent = state.twdVia || ''
@@ -390,6 +579,9 @@
     renderLive(twd, tws, curve)
     $('polarStatus').textContent = tws.value !== null && polar.error ? polar.error : ''
     $('polarStatus').hidden = !$('polarStatus').textContent
+
+    renderNav()
+    renderMap(twd.value)
 
     const tbody = $('legs')
     const route = state.route
@@ -597,6 +789,25 @@
       save()
     })
   }
+
+  $('prevPoint').addEventListener('click', () => stepPoint(-1))
+  $('nextPoint').addEventListener('click', () => stepPoint(1))
+
+  try {
+    if (localStorage.getItem(MAP_FOCUS_KEY) === 'leg') mapFocus = 'leg'
+  } catch (e) { /* storage unavailable */ }
+  const fitButton = $('mapFit')
+  // The button says what it will do, not what the map is showing
+  const showFocus = () => { fitButton.textContent = mapFocus === 'leg' ? 'Whole route' : 'Zoom to leg' }
+  showFocus()
+  fitButton.addEventListener('click', () => {
+    mapFocus = mapFocus === 'leg' ? 'route' : 'leg'
+    try { localStorage.setItem(MAP_FOCUS_KEY, mapFocus) } catch (e) { /* ignore */ }
+    showFocus()
+    render()
+  })
+
+  window.addEventListener('resize', render) // the map is drawn in pixels
 
   loadCourse().catch((e) => setStatus(e.message))
   setInterval(() => loadCourse().catch((e) => setStatus(e.message)), 15000)

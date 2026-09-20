@@ -122,7 +122,8 @@ h1 { margin: 0; font-size: 1.5em; }
 .stale { color: var(--muted); }
 .center { text-align: center; }
 
-main { overflow-x: auto; }
+main { display: flex; flex-direction: column; gap: 16px; }
+.table-wrap { overflow-x: auto; }
 
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
@@ -149,6 +150,54 @@ tr.active { background: var(--active); font-weight: 600; }
 .stbd { color: var(--stbd); }
 .placeholder { color: var(--muted); }
 
+/* Step through the route: advances activeRoute.pointIndex on the server */
+.course-nav { display: inline-flex; align-items: center; gap: 6px; margin: 4px 0; }
+.step-label { min-width: 8.5em; text-align: center; line-height: 1.15; }
+.step {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  font-size: 1.6em;
+  line-height: 1;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.step:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.step:disabled { opacity: 0.35; cursor: default; }
+
+/* Mini map: boat, the route, and the line to the mark in use */
+.map-wrap { border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+.map-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.map-title { font-size: 0.8em; color: var(--muted); text-transform: uppercase; }
+.ghost {
+  font: inherit;
+  font-size: 0.8em;
+  padding: 4px 10px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ghost:hover { border-color: var(--accent); color: var(--accent); }
+.map-box { display: flex; justify-content: center; }
+.map { display: block; max-width: 100%; }
+.map .leg-line { fill: none; stroke: var(--muted); stroke-width: 2; }
+.map .leg-line.done { stroke-dasharray: 2 5; opacity: 0.5; }
+.map .to-mark { fill: none; stroke: var(--accent); stroke-width: 3; stroke-dasharray: 7 5; }
+.map .mark { fill: var(--bg); stroke: var(--muted); stroke-width: 2; }
+.map .mark.target { fill: var(--accent); stroke: var(--accent); }
+.map .label { fill: var(--muted); font-size: 12px; }
+.map .label.target { fill: var(--accent); font-weight: 600; }
+.map .label.done, .map .mark.done { opacity: 0.45; }
+.map .boat { fill: var(--stbd); stroke: var(--bg); stroke-width: 1.5; }
+.map .wind-arrow { stroke: var(--fg); stroke-width: 2; fill: var(--fg); opacity: 0.7; }
+.map .scale { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+.map-note { min-height: 1em; }
+
 /* Phones: smaller text, tighter cells, leg names wrap, compact wind boxes */
 @media (max-width: 600px) {
   body { font-size: 16px; padding: 10px; }
@@ -161,4 +210,7 @@ tr.active { background: var(--active); font-weight: 600; }
   .wind-tile { flex: 1; min-width: 0; padding: 3px 6px; }
   .wind-label { font-size: 0.65em; }
   .wind-value { font-size: 1.15em; }
+  .step { width: 40px; height: 40px; }
+  .map-wrap { padding: 6px; }
+  .map .label { font-size: 11px; }
 }

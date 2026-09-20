@@ -17,6 +17,14 @@
         <span id="liveGps" class="live-item"><span class="dot"></span>GPS <span class="age">--</span></span>
         <span id="livePolar" class="live-item"><span class="dot"></span>Polar <span class="age">--</span></span>
       </div>
+      <div id="courseNav" class="course-nav" hidden>
+        <button id="prevPoint" class="step" type="button" aria-label="Back to previous mark">&lsaquo;</button>
+        <div class="step-label">
+          <div id="stepName">--</div>
+          <div id="stepCount" class="sub"></div>
+        </div>
+        <button id="nextPoint" class="step" type="button" aria-label="On to next mark">&rsaquo;</button>
+      </div>
       <div id="status" class="muted"></div>
       <div id="conn" class="warn">Connecting…</div>
       <div id="polarStatus" class="warn" hidden></div>
@@ -53,23 +61,36 @@
   </header>
 
   <main>
-    <table>
-      <thead>
-        <tr>
-          <th class="leg">Leg</th>
-          <th class="num">TWA<div id="twaSource" class="sub"></div></th>
-          <th class="num">STW<div id="stwSource" class="sub"></div></th>
-          <th class="num">Time</th>
-          <th class="num">Port / Stbd</th>
-          <th class="num">ETA</th>
-          <th class="num">BRG<div id="brgSource" class="sub"></div></th>
-          <th class="num">DIST</th>
-        </tr>
-      </thead>
-      <tbody id="legs">
-        <tr><td colspan="8" class="muted center">No active route</td></tr>
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="leg">Leg</th>
+            <th class="num">TWA<div id="twaSource" class="sub"></div></th>
+            <th class="num">STW<div id="stwSource" class="sub"></div></th>
+            <th class="num">Time</th>
+            <th class="num">Port / Stbd</th>
+            <th class="num">ETA</th>
+            <th class="num">BRG<div id="brgSource" class="sub"></div></th>
+            <th class="num">DIST</th>
+          </tr>
+        </thead>
+        <tbody id="legs">
+          <tr><td colspan="8" class="muted center">No active route</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <section id="mapSection" class="map-wrap" hidden>
+      <div class="map-head">
+        <span class="map-title">Route</span>
+        <button id="mapFit" class="ghost" type="button">Zoom to leg</button>
+      </div>
+      <div id="mapBox" class="map-box">
+        <svg id="map" class="map" role="img" aria-label="Route map"></svg>
+      </div>
+      <div id="mapNote" class="map-note muted center sub"></div>
+    </section>
   </main>
 
   <script src="app.js"></script>

@@ -1,6 +1,6 @@
 # signalk-race-plan
 
-A Signal K webapp that turns the active route into a race plan. For every leg it shows the bearing, distance and true wind angle. With a polar available, it also shows expected boat speed, leg time, time on each tack or gybe, and an ETA at each mark. On the current leg, figures are worked out from the boat's position to the mark.
+A Signal K webapp that turns the active route into a race plan. For every leg it shows the bearing, distance and true wind angle. With a polar available, it also shows expected boat speed, leg time, time on each tack or gybe, and an ETA at each mark. On the current leg, figures are worked out from the boat's position to the mark. Under the table a mini map draws the course, the boat and the leg being sailed, and buttons in the header step to the next or previous mark.
 
 Use it ashore with a forecast wind to plan the race, or on the water with live wind from your instruments.
 
@@ -33,7 +33,7 @@ Reading the example:
 - **Leg 5** is dead downwind. It's sailed as a run at 150° on each gybe, again split evenly.
 - **ETAs** add up from now: 14:00 + 4m 39s at Wing (14:05), + 7m 45s at Leeward (14:12), and so on to the finish.
 
-Above the table, the header shows the route name, the finish summary, live data indicators, the next mark ("Heading to Wing") and the wind inputs described below.
+Above the table, the header shows the route name, the finish summary, live data indicators, the mark step control ("‹ To Wing ›") and the wind inputs described below. Under the table is the [mini map](#mini-map).
 
 ## Is the data live?
 
@@ -92,11 +92,34 @@ With a position from `navigation.position` less than 15 s old:
 
 **Missing leg times:** if any leg's time is unknown (no wind, no polar), the ETA at that mark and every later mark shows `--`, as does the finish time.
 
+## Mini map
+
+Under the table, a map shows the course from above, north up:
+
+- **Route:** a line through the marks. Legs already sailed are dotted and faded.
+- **Marks:** a circle each, with the waypoint name (long names are shortened). The mark being sailed to is filled and labelled in blue; sailed marks are faded.
+- **Line to the mark:** a thick dashed blue line to the mark in use — from the boat when there's a position, otherwise from the mark behind it.
+- **Boat:** a green arrow at `navigation.position`, pointing at `navigation.headingTrue`. If there's no heading, it points at the mark. With no position less than 15 s old, the boat is left off and the map says so.
+- **Wind arrow:** top right, pointing the way the wind is blowing (away from the TWD in use). It follows the override when one is set.
+- **Scale bar:** bottom left, in metres or nautical miles.
+
+**Zoom to leg / Whole route** switches between fitting the whole course and fitting just the leg being sailed. The choice is kept in that browser. The map is drawn to fit the shape of what it's showing, so a north–south course gets a tall box and an east–west one a short box.
+
+The map is a sketch of the course, not a chart: no coastline, depths or hazards. Use your chart app for navigation.
+
+## Stepping through the route
+
+The header has **‹ To Wing ›** with the mark being sailed to and how far through the route it is (`mark 3 of 5`).
+
+- **›** advances to the next mark, **‹** goes back one. Each button is greyed out at that end of the route.
+- This changes `activeRoute.pointIndex` through the Signal K Course API, the same value a chart app advances on arrival. Every client following the course sees the change, not just this browser.
+- The table and map move straight away, then the server's answer is taken as the truth. If the server refuses — e.g. a secured server you aren't logged in to — the step is undone and the header shows `Could not change mark: …`.
+
 ## Route progress
 
 - **Which route:** the page always shows the route that is active in the Signal K Course API. It updates when a different route is activated or reversed.
 - **Leg states:** legs already sailed are dimmed. The current leg (the one ending at the next point, `activeRoute.pointIndex`) is highlighted.
-- **Advancing to the next mark:** done by your chart app or course provider, e.g. Freeboard-SK's arrival circle or "next point". Race Plan follows it.
+- **Advancing to the next mark:** done by your chart app or course provider, e.g. Freeboard-SK's arrival circle or "next point". Race Plan follows it, and can also [step it itself](#stepping-through-the-route).
 
 ## Status messages
 
@@ -105,6 +128,7 @@ With a position from `navigation.position` less than 15 s old:
 | `No active route` | No route is active in the Course API |
 | `No position: remaining and ETA unavailable` | No `navigation.position` in the last 15 s. Legs are shown mark to mark |
 | `Course API unavailable: …` | The Course API request failed |
+| `Could not change mark: …` | The ‹ › buttons couldn't move `activeRoute.pointIndex`. `Unauthorised` means the server needs you to log in |
 | `°T no variation` (under BRG) | Nothing publishes `navigation.magneticVariation`, so bearings are shown true, not magnetic |
 | `Disconnected, retrying…` | The data connection to the server dropped. It reconnects every 3 s |
 | `Polar: No active polar selected` | The polar plugin is running but no polar is active |
@@ -121,6 +145,7 @@ While any polar message is showing, STW, leg time and port/stbd show `--`, and R
 - **Position** (`navigation.position`) for remaining distance, time and ETAs.
 - **Magnetic variation** (`navigation.magneticVariation`) for magnetic bearings and the magnetic TWD fallback. Optional.
 - **Start time** (`navigation.racing.startTime` from signalk-racer). Optional.
+- **Write access to the Course API** for the ‹ › mark buttons. On a secured server, log in to the Signal K admin UI in the same browser.
 - **For STW, leg time and port/stbd:**
   - [signalk-polar-performance-plugin](https://github.com/htool/signalk-polar-performance-plugin)
   - A polar made active through a polar resource provider such as [signalk-polar-management](https://github.com/Asw1n/signalk-polar-management)
@@ -145,3 +170,4 @@ npm install /path/to/signalk-race-plan
 - **Same wind for every leg:** ETAs for later legs assume the current wind holds for the rest of the race.
 - **Variation:** magnetic bearings use the boat's current variation for every leg, which is fine for a race course but not for a long passage. Compass deviation isn't applied.
 - **Route edits:** if you move or add marks in the active route, reload the page to see them. Race Plan only refetches the route when a different route is activated or the direction is reversed.
+- **The map is not a chart:** it shows only the route and the boat, with no land, depths or hazards, and no zooming or panning beyond the two fits.
