@@ -1,19 +1,29 @@
-# signalk-race-plan
+# Race Plan for Signal K
 
-A Signal K webapp that turns the active route into a race plan: every leg with its bearing, distance and true wind angle, and — with a polar — the target boat speed, the time on each tack or gybe and an ETA at every mark. The leg you're on is measured from the boat, not from the mark behind you.
+Know how the race will play out before the start, and where you stand while you sail it.
 
-Use it ashore with a forecast wind to plan the race, or on the water with live wind from your instruments.
+Race Plan turns the active route into a leg-by-leg plan from your wind and your boat's polar. For every leg you get whether it's a beat, reach or run, the target speed, the time on each tack or gybe, and the time you'll reach each mark and the finish. On the water it updates live from your instruments, measured from where the boat actually is.
 
-![Race Plan: the finish summary and wind boxes above the leg table, with the course map below](docs/screenshot.png)
+![Race Plan: the finish summary and wind boxes above the leg table, with the course map below](https://raw.githubusercontent.com/ghotihook/signalk-race-plan/main/docs/screenshot.png)
 
-The screenshot shows a five-mark course with the boat still heading to the first mark, so the top row is `– Boat → WP1`: 0.93 nm to run at 6.4 kn, arriving 08:41. Reading down the page:
+## Why use it
 
-- **Finish 09:29 · 59m to go** — the [summary](#during-the-race), with distance to go and the whole course underneath.
-- **● Wind 0s ● GPS 0s ● Polar 11s** — the [live strip](#is-the-data-live), so you can see data is still arriving.
-- **‹ To WP1 · mark 1 of 5 ›** — the [mark you're sailing to](#the-mark-youre-sailing-to). **‹** is greyed out because this is the first mark.
-- **TWD 133° / TWS 12.1 kn**, outlined and tagged **In use** — the [wind in use](#wind-signal-k-or-override), here live from Signal K rather than an override.
-- **The table** — one row per [leg](#the-table), with the time on each tack or gybe. The current leg is highlighted.
-- **The map** — the [course from above](#the-map), with the boat as a green arrow and a dashed blue line to WP1.
+- **Plan on the dock.** Type in the forecast wind and see the whole course at once: which legs are beats, reaches or runs, which board each is mostly sailed on, and how long it should take. Good for sail choice and for the pre-start briefing.
+- **Know your laylines.** On a beat, the port/stbd times show how much of each tack is left. When one side disappears, you're on the layline.
+- **Keep track of the clock.** The ETA at every mark and at the finish is recalculated from the boat's position in the current wind, so you know when the next leg starts and whether you'll make a time limit or a tide gate.
+- **Crew can use their phones.** It's a web page served by your Signal K server, so anyone aboard can open it in a phone browser with nothing to install. The key columns fit a phone screen.
+- **Works with what you already have.** It uses the route you've activated in your chart app and the polar you already have in Signal K. The ‹ › mark buttons move the active mark for every connected app, not just this screen.
+
+## Reading the screen
+
+The screenshot shows a five-mark course, planned with a forecast wind override, with the boat heading to the first mark. The top row is `– Boat → WP1`: 0.27 nm to go at 7.0 kn, all on starboard, arriving 22:39. From top to bottom:
+
+- **Finish 23:30 · 53m to go**: the [summary](#during-the-race), with the remaining distance and the whole course below it.
+- **● Wind override ● GPS 0s ● Polar 6s**: the [live strip](#is-the-data-live). It shows position and polar data are still arriving, and that the wind is an override.
+- **‹ To WP1 · mark 1 of 5 ›**: the [mark you're sailing to](#the-mark-youre-sailing-to). **‹** is greyed out because this is the first mark.
+- **TWD 293° / TWS 13 kn**, in amber and tagged **In use**: the [wind in use](#wind-signal-k-or-override). Here it's an override. The live Signal K values (64°, 13.0 kn) are dimmed beside them.
+- **The table**: one row per [leg](#the-table), with the time on each tack or gybe. The current leg is highlighted. The last leg is almost dead upwind (TWA 2°), so it's sailed as a beat at 38° with the time split between the two tacks: `P 12m / S 11m`.
+- **The map**: the [course from above](#the-map), with the boat shown as a green arrow and a dashed blue line to WP1.
 
 ## Install
 
