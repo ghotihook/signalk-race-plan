@@ -17,7 +17,8 @@
     "appIcon": "./icon.svg"
   },
   "files": [
-    "public/"
+    "public/",
+    "CHANGELOG.md"
   ],
   "repository": {
     "type": "git",
