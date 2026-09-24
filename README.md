@@ -4,7 +4,7 @@ Know how the race will play out before the start, and where you stand while you 
 
 Race Plan turns the active route into a leg-by-leg plan from your wind and your boat's polar. For every leg you get whether it's a beat, reach or run, the target speed, the time on each tack or gybe, and the time you'll reach each mark and the finish. On the water it updates live from your instruments, measured from where the boat actually is.
 
-![Race Plan: the finish summary and wind boxes above the leg table, with the course map below](https://raw.githubusercontent.com/ghotihook/signalk-race-plan/main/docs/screenshot.png)
+![Race Plan mid-race: the finish summary and wind boxes above the leg table, with the course map below](https://raw.githubusercontent.com/ghotihook/signalk-race-plan/main/docs/screenshot.png)
 
 ## Why use it
 
@@ -16,14 +16,14 @@ Race Plan turns the active route into a leg-by-leg plan from your wind and your 
 
 ## Reading the screen
 
-The screenshot shows a five-mark course, planned with a forecast wind override, with the boat heading to the first mark. The top row is `– Boat → WP1`: 0.27 nm to go at 7.0 kn, all on starboard, arriving 22:39. From top to bottom:
+The screenshot shows a race in progress on live Signal K wind, with the boat on the second leg heading to BB. The first leg is already sailed. The highlighted row is `2 Boat → BB`: 0.92 nm to go at 6.7 kn, all on port, arriving 09:19. From top to bottom:
 
-- **Finish 23:30 · 53m to go**: the [summary](#during-the-race), with the remaining distance and the whole course below it.
-- **● Wind override ● GPS 0s ● Polar 6s**: the [live strip](#is-the-data-live). It shows position and polar data are still arriving, and that the wind is an override.
-- **‹ To WP1 · mark 1 of 5 ›**: the [mark you're sailing to](#the-mark-youre-sailing-to). **‹** is greyed out because this is the first mark.
-- **TWD 293° / TWS 13 kn**, in amber and tagged **In use**: the [wind in use](#wind-signal-k-or-override). Here it's an override. The live Signal K values (64°, 13.0 kn) are dimmed beside them.
-- **The table**: one row per [leg](#the-table), with the time on each tack or gybe. The current leg is highlighted. The last leg is almost dead upwind (TWA 2°), so it's sailed as a beat at 38° with the time split between the two tacks: `P 12m / S 11m`.
-- **The map**: the [course from above](#the-map), with the boat shown as a green arrow and a dashed blue line to WP1.
+- **Finish 09:47 · 36m to go**: the [summary](#during-the-race), with the remaining distance and the whole course below it.
+- **● Wind 13s ● GPS 0s ● Polar 3s**: the [live strip](#is-the-data-live). Position and polar data are fresh. The wind is amber because it last updated 13 seconds ago, close to the 15-second stale limit.
+- **‹ To BB · mark 3 of 5 ›**: the [mark you're sailing to](#the-mark-youre-sailing-to). Both buttons are active because this mark is in the middle of the route.
+- **TWD 16° / TWS 16.8 kn**, tagged **In use**: the [wind in use](#wind-signal-k-or-override). Here it's live from Signal K, and the override boxes beside them are dimmed and empty.
+- **The table**: one row per [leg](#the-table), with the time on each tack or gybe. Leg 1 is dimmed because it's sailed. The current leg is highlighted, with the full mark-to-mark leg (2.12 nm, 20m) underneath, and its time on port counts down in seconds. Leg 3 is almost dead downwind (TWA 174°), so it's sailed as a run at 170° with the time split between the two gybes: `P 2m / S 9m`.
+- **The map**: the [course from above](#the-map). The sailed leg is dotted and N2 is faded. The boat is the green arrow, with a dashed blue line to BB.
 
 ## Install
 

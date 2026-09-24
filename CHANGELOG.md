@@ -2,6 +2,11 @@
 
 What's changed in each release of Race Plan, newest first.
 
+## 0.2.3 — 2026-09-25
+
+- New screenshot of a race in progress on live Signal K wind, and the README's "Reading the screen" walkthrough rewritten to match it.
+- This changelog now ships with the package.
+
 ## 0.2.2 — 2026-09-21
 
 - The README now opens with what Race Plan does for you on the water and why you'd install it, with a new screenshot showing a forecast wind override and a beat split across both tacks.
