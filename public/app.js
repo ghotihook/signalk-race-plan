@@ -105,7 +105,7 @@
     if (!ar || !ar.href) {
       state.route = null
       state.routeKey = null
-      setStatus('No active route')
+      setStatus('No active route: create and activate one in your chart app, e.g. Freeboard-SK')
       render()
       return
     }
@@ -591,7 +591,7 @@
     if (!route || route.points.length < 2) {
       $('routeName').textContent = 'Race Plan'
       $('summary').textContent = ''
-      tbody.innerHTML = '<tr><td colspan="7" class="muted center">No active route</td></tr>'
+      tbody.innerHTML = '<tr><td colspan="7" class="muted center">No active route: create and activate one in your chart app, e.g. Freeboard-SK</td></tr>'
       return
     }
     $('routeName').textContent = route.name

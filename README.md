@@ -29,6 +29,10 @@ The screenshot shows a race in progress on live Signal K wind, with the boat on 
 
 In the Signal K admin UI, open **Appstore → Available**, find **Race Plan** and install it. Restart the server, then open **Webapps → Race Plan** (`/signalk-race-plan/`). It's a plain webapp with nothing to enable or configure.
 
+## Before you start: set up the route
+
+Race Plan doesn't create or edit routes. It reads the route that's active in Signal K. Build the course as a route in your chart app (e.g. Freeboard-SK), with a waypoint per mark and the start and finish as the first and last points, then activate it. Race Plan picks it up straight away. The ‹ › buttons only move which mark is active.
+
 For development, install from a local checkout:
 
 ```sh
@@ -39,7 +43,7 @@ npm install /path/to/signalk-race-plan
 ## Requirements
 
 - **Signal K server 2.x**, for the v2 Course and Resources APIs.
-- **An active route**, e.g. created and activated in Freeboard-SK.
+- **An active route**, created and activated in a chart app such as Freeboard-SK. Race Plan only reads it (see [Before you start](#before-you-start-set-up-the-route)).
 - **True wind data** (see [Wind](#wind-signal-k-or-override)), or overrides.
 - **Position** (`navigation.position`) for remaining distance, time and ETAs.
 - **Magnetic variation** (`navigation.magneticVariation`) for magnetic bearings and the magnetic TWD fallback. Optional.
@@ -156,7 +160,7 @@ Header summary: **Finish 14:49** · 49m to go (5.10 nm to go · Course 7.00 nm �
 
 | Message | Meaning |
 |---------|---------|
-| `No active route` | No route is active in the Course API |
+| `No active route: create and activate one…` | No route is active in the Course API. Race Plan only reads routes, so build and activate one in your chart app (see [Before you start](#before-you-start-set-up-the-route)) |
 | `No position: remaining and ETA unavailable` | No `navigation.position` in the last 15 s. Legs are shown mark to mark |
 | `Course API unavailable: …` | The Course API request failed |
 | `Could not change mark: …` | The ‹ › buttons couldn't move `activeRoute.pointIndex`. `Unauthorised` means the server needs you to log in |

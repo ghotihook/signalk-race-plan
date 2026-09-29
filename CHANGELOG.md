@@ -2,6 +2,11 @@
 
 What's changed in each release of Race Plan, newest first.
 
+## 0.2.4 — 2026-09-30
+
+- Clearer that Race Plan reads your route rather than creating it. The README has a new "Before you start" section on setting up the course in your chart app (e.g. Freeboard-SK), and the Appstore description says where the route comes from.
+- With no route active, the page now tells you to create and activate one in your chart app, instead of just `No active route`.
+
 ## 0.2.3 — 2026-09-25
 
 - New screenshot of a race in progress on live Signal K wind, and the README's "Reading the screen" walkthrough rewritten to match it.
