@@ -2,6 +2,10 @@
 
 What's changed in each release of Race Plan, newest first.
 
+## 0.2.5 — 2026-10-12
+
+- Coming back to Race Plan after it's been in a background tab now shows the current TWS and TWD straight away, instead of scrolling through every reading that arrived while you were away.
+
 ## 0.2.4 — 2026-09-30
 
 - Clearer that Race Plan reads your route rather than creating it. The README has a new "Before you start" section on setting up the course in your chart app (e.g. Freeboard-SK), and the Appstore description says where the route comes from.

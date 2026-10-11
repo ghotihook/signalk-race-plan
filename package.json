@@ -1,6 +1,6 @@
 {
   "name": "signalk-race-plan",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Race planning for the route you've activated in your chart app: see which legs are beats, reaches and runs, target speed from your polar, time on each tack, and live ETAs at every mark and the finish",
   "keywords": [
     "signalk-webapp",

@@ -559,6 +559,21 @@
     $('mapNote').textContent = boat ? '' : 'No position: the boat is not shown'
   }
 
+  // Batches redraws from the stream to one per frame, so a burst of
+  // queued deltas (e.g. after the tab was in the background) draws once
+  let frameQueued = false
+  const pulses = new Set()
+  function scheduleRender () {
+    if (frameQueued) return
+    frameQueued = true
+    requestAnimationFrame(() => {
+      frameQueued = false
+      for (const key of pulses) pulse(key)
+      pulses.clear()
+      render()
+    })
+  }
+
   function render () {
     const twd = renderSource('twd', state.twdLive, state.twdAt, fmtTwd)
     $('twdVia').textContent = state.twdVia || ''
@@ -760,10 +775,10 @@
         }
       }
 
-      if (windArrived) pulse('Wind')
-      if (positionArrived) pulse('Gps')
+      if (windArrived) pulses.add('Wind')
+      if (positionArrived) pulses.add('Gps')
       if (courseChanged) loadCourse().catch((e) => setStatus(e.message))
-      else if (redraw) render()
+      if (redraw) scheduleRender()
     }
 
     ws.onclose = () => {
