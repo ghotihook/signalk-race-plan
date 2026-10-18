@@ -12,7 +12,7 @@ Race Plan turns the active route into a leg-by-leg plan from your wind and your 
 - **Know your laylines.** On a beat, the port/stbd times show how much of each tack is left. When one side disappears, you're on the layline.
 - **Keep track of the clock.** The ETA at every mark and at the finish is recalculated from the boat's position in the current wind, so you know when the next leg starts and whether you'll make a time limit or a tide gate.
 - **Crew can use their phones.** It's a web page served by your Signal K server, so anyone aboard can open it in a phone browser with nothing to install. The key columns fit a phone screen.
-- **Works with what you already have.** It uses the route you've activated in your chart app and the polar you already have in Signal K. The ‹ › mark buttons move the active mark for every connected app, not just this screen.
+- **Works with what you already have.** It uses the routes you've saved in your chart app and the polar you already have in Signal K. Choosing the course and the ‹ › mark buttons change the active route and mark for every connected app, not just this screen.
 
 ## Reading the screen
 
@@ -31,7 +31,7 @@ In the Signal K admin UI, open **Appstore → Available**, find **Race Plan** an
 
 ## Before you start: set up the route
 
-Race Plan doesn't create or edit routes. It reads the route that's active in Signal K. Build the course as a route in your chart app (e.g. Freeboard-SK), with a waypoint per mark and the start and finish as the first and last points, then activate it. Race Plan picks it up straight away. The ‹ › buttons only move which mark is active.
+Race Plan doesn't create or edit routes. Build the course as a route in your chart app (e.g. Freeboard-SK), with a waypoint per mark and the start and finish as the first and last points. Then pick it from Race Plan's **Course** list (see [Choosing the course](#choosing-the-course)), or activate it in the chart app. Either way Race Plan picks it up straight away.
 
 For development, install from a local checkout:
 
@@ -43,12 +43,12 @@ npm install /path/to/signalk-race-plan
 ## Requirements
 
 - **Signal K server 2.x**, for the v2 Course and Resources APIs.
-- **An active route**, created and activated in a chart app such as Freeboard-SK. Race Plan only reads it (see [Before you start](#before-you-start-set-up-the-route)).
+- **A saved route**, created in a chart app such as Freeboard-SK (see [Before you start](#before-you-start-set-up-the-route)). Activate it from Race Plan's Course list or from the chart app.
 - **True wind data** (see [Wind](#wind-signal-k-or-override)), or overrides.
 - **Position** (`navigation.position`) for remaining distance, time and ETAs.
 - **Magnetic variation** (`navigation.magneticVariation`) for magnetic bearings and the magnetic TWD fallback. Optional.
 - **Start time** (`navigation.racing.startTime` from [signalk-racer](https://github.com/gregw/signalk-racer)). Optional.
-- **Write access to the Course API** for the ‹ › mark buttons. On a secured server, log in to the Signal K admin UI in the same browser.
+- **Write access to the Course API** for choosing the course and for the ‹ › mark buttons. On a secured server, log in to the Signal K admin UI in the same browser.
 - **For STW and port/stbd:**
   - [signalk-polar-performance-plugin](https://github.com/htool/signalk-polar-performance-plugin)
   - A polar made active through a polar resource provider such as [signalk-polar-management](https://github.com/Asw1n/signalk-polar-management)
@@ -98,6 +98,15 @@ The header has two pairs of boxes, one pair for TWD and one for TWS. Each pair s
 - **Stale data:** if a live value hasn't updated for 15 seconds, it's shown as e.g. `270° stale`. It isn't used, and the columns that depend on it show `--`.
 - **Overrides:** type a value to plan with a forecast. The override box turns amber and is tagged **In use**. Press **×** to clear it and go back to Signal K.
 - **Saved per browser:** overrides are kept in that browser across reloads. The amber box is the reminder that one is set.
+
+## Choosing the course
+
+The **Course** list under the title shows every route saved in Signal K, with its number of marks and length: `Harbour course · 4 marks · 4.3 nm`. The one that's active is selected.
+
+- Pick a route to make it the active route, starting at the first mark. It's sailed in the direction it was drawn.
+- If a route is already active, Race Plan asks before switching, because the active mark goes back to the start for every connected app.
+- The list is refreshed each time you open it, so routes saved since the page loaded show up.
+- If the server refuses — a secured server you aren't logged in to, say — the header shows `Could not activate course: …`.
 
 ## The mark you're sailing to
 
@@ -160,7 +169,9 @@ Header summary: **Finish 14:49** · 49m to go (5.10 nm to go · Course 7.00 nm �
 
 | Message | Meaning |
 |---------|---------|
-| `No active route: create and activate one…` | No route is active in the Course API. Race Plan only reads routes, so build and activate one in your chart app (see [Before you start](#before-you-start-set-up-the-route)) |
+| `No active route: choose a course above…` | No route is active in the Course API. Pick one from the Course list, or create one in your chart app first if the list is empty (see [Before you start](#before-you-start-set-up-the-route)) |
+| `Could not activate course: …` | The Course list couldn't set the active route. `Unauthorised` means the server needs you to log in |
+| `Could not load routes: …` | The Resources API request for saved routes failed |
 | `No position: remaining and ETA unavailable` | No `navigation.position` in the last 15 s. Legs are shown mark to mark |
 | `Course API unavailable: …` | The Course API request failed |
 | `Could not change mark: …` | The ‹ › buttons couldn't move `activeRoute.pointIndex`. `Unauthorised` means the server needs you to log in |

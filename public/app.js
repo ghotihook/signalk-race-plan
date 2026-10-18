@@ -105,7 +105,8 @@
     if (!ar || !ar.href) {
       state.route = null
       state.routeKey = null
-      setStatus('No active route: create and activate one in your chart app, e.g. Freeboard-SK')
+      setStatus(NO_ROUTE)
+      syncRouteSelect()
       render()
       return
     }
@@ -121,13 +122,100 @@
         name: await waypointName(metas[i], i)
       })))
       if (ar.reverse) points = points.reverse()
-      state.route = { name: ar.name || res.name || 'Active route', points, pointIndex: 0 }
+      state.route = { name: ar.name || res.name || 'Active route', href: ar.href, points, pointIndex: 0 }
       state.routeKey = key
     }
 
     state.route.pointIndex = typeof ar.pointIndex === 'number' ? ar.pointIndex : 0
     setStatus('')
+    syncRouteSelect()
     render()
+  }
+
+  // ---- choosing the course ----------------------------------------------
+
+  // Saved routes come from the Resources API; picking one makes it the active
+  // route in the Course API, starting at the first mark, for every client.
+  const NO_ROUTE = 'No active route: choose a course above, or create one in your chart app, e.g. Freeboard-SK'
+  let routes = [] // [{ href, name, marks, nm }], by name
+  let activating = false
+
+  async function loadRoutes () {
+    const res = await getJson(`${API}/resources/routes`)
+    const list = Object.entries(res || {}).map(([id, r]) => {
+      const coords = (r.feature && r.feature.geometry && r.feature.geometry.coordinates) || []
+      let nm = 0
+      for (let i = 1; i < coords.length; i++) {
+        nm += distanceNm({ lon: coords[i - 1][0], lat: coords[i - 1][1] }, { lon: coords[i][0], lat: coords[i][1] })
+      }
+      return { href: `/resources/routes/${id}`, name: r.name || id, marks: coords.length, nm }
+    }).sort((a, b) => a.name.localeCompare(b.name))
+    // Unchanged list: leave the dropdown alone, it may be opening on a phone
+    if (JSON.stringify(list) === JSON.stringify(routes) && $('routeSelect').options.length) return
+    routes = list
+    renderRouteOptions()
+  }
+
+  // Rebuilt only when the list is loaded, so the 1 s render never closes an open dropdown
+  function renderRouteOptions () {
+    const select = $('routeSelect')
+    select.replaceChildren()
+    const add = (value, text) => {
+      const opt = document.createElement('option')
+      opt.value = value
+      opt.textContent = text
+      select.append(opt)
+      return opt
+    }
+    add('', routes.length ? 'Choose a course…' : 'No saved routes').disabled = true
+    for (const r of routes) add(r.href, `${r.name} · ${r.marks} marks · ${r.nm.toFixed(1)} nm`)
+    // An active route that isn't in the list (e.g. from another provider) still shows
+    const active = state.route
+    if (active && !routes.some((r) => r.href === active.href)) add(active.href, active.name)
+    syncRouteSelect()
+  }
+
+  function syncRouteSelect () {
+    const select = $('routeSelect')
+    if (activating) return
+    const href = state.route ? state.route.href : ''
+    if (href && ![...select.options].some((o) => o.value === href)) {
+      renderRouteOptions() // calls back here once the option exists
+      return
+    }
+    select.value = href
+    select.disabled = false
+  }
+
+  async function activateRoute (href) {
+    const select = $('routeSelect')
+    const route = routes.find((r) => r.href === href)
+    if (!route || (state.route && state.route.href === href)) return
+    if (state.route && !window.confirm(`Switch to ${route.name}? The active mark goes back to the start for every connected app.`)) {
+      syncRouteSelect()
+      return
+    }
+
+    activating = true
+    select.disabled = true
+    let err = null
+    try {
+      const res = await fetch(`${API}/vessels/self/navigation/course/activeRoute`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ href, pointIndex: 0, reverse: false })
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error((body && body.message) || `${res.status} ${res.statusText}`)
+      }
+    } catch (e) {
+      err = e.message
+    }
+    activating = false
+    await loadCourse().catch((e) => { err = err || e.message })
+    if (err) setStatus(`Could not activate course: ${err}`)
   }
 
   // ---- polar ------------------------------------------------------------
@@ -606,7 +694,7 @@
     if (!route || route.points.length < 2) {
       $('routeName').textContent = 'Race Plan'
       $('summary').textContent = ''
-      tbody.innerHTML = '<tr><td colspan="7" class="muted center">No active route: create and activate one in your chart app, e.g. Freeboard-SK</td></tr>'
+      tbody.innerHTML = `<tr><td colspan="7" class="muted center">${NO_ROUTE}</td></tr>`
       return
     }
     $('routeName').textContent = route.name
@@ -809,6 +897,13 @@
 
   $('prevPoint').addEventListener('click', () => stepPoint(-1))
   $('nextPoint').addEventListener('click', () => stepPoint(1))
+
+  const routeSelect = $('routeSelect')
+  const refreshRoutes = () => loadRoutes().catch((e) => setStatus(`Could not load routes: ${e.message}`))
+  routeSelect.addEventListener('change', () => activateRoute(routeSelect.value))
+  // Pick up routes saved since the page loaded, before the list opens
+  routeSelect.addEventListener('focus', refreshRoutes)
+  refreshRoutes()
 
   try {
     if (localStorage.getItem(MAP_FOCUS_KEY) === 'leg') mapFocus = 'leg'

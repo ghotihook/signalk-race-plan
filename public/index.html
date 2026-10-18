@@ -11,6 +11,10 @@
   <header>
     <div>
       <h1 id="routeName">Race Plan</h1>
+      <label class="course-pick">
+        <span class="wind-label">Course</span>
+        <select id="routeSelect" aria-label="Choose the course to sail"></select>
+      </label>
       <div id="summary" class="summary"></div>
       <div class="live">
         <span id="liveWind" class="live-item"><span class="dot"></span>Wind <span class="age">--</span></span>
@@ -75,7 +79,7 @@
           </tr>
         </thead>
         <tbody id="legs">
-          <tr><td colspan="7" class="muted center">No active route: create and activate one in your chart app, e.g. Freeboard-SK</td></tr>
+          <tr><td colspan="7" class="muted center">No active route: choose a course above, or create one in your chart app, e.g. Freeboard-SK</td></tr>
         </tbody>
       </table>
     </div>

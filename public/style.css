@@ -168,6 +168,25 @@ tr.active { background: var(--active); font-weight: 600; }
 .step:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .step:disabled { opacity: 0.35; cursor: default; }
 
+/* Choose the course: sets the active route on the server */
+.course-pick { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.course-pick .wind-label { display: inline; }
+.course-pick select {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 40px;
+  font: inherit;
+  font-size: 0.85em;
+  padding: 4px 8px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.course-pick select:hover:not(:disabled) { border-color: var(--accent); }
+.course-pick select:disabled { opacity: 0.5; cursor: default; }
+
 /* Mini map: boat, the route, and the line to the mark in use */
 .map-wrap { border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
 .map-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }

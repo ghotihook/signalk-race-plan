@@ -2,6 +2,11 @@
 
 What's changed in each release of Race Plan, newest first.
 
+## 0.3.0 — 2026-10-18
+
+- **Choose the course in Race Plan.** A new Course list under the title shows your saved routes with their marks and length. Pick one and it becomes the active route for every connected app, starting at the first mark, with no need to go to the chart app. If a route is already active, Race Plan checks with you before switching.
+- The README has a new "Choosing the course" section, and the Appstore description now says Race Plan works from the route you choose.
+
 ## 0.2.6 — 2026-10-14
 
 - Shorter Appstore description that leads with what Race Plan shows you, so it reads well even when the listing cuts it off.
