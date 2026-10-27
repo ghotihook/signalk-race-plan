@@ -1,6 +1,6 @@
 {
   "name": "signalk-race-plan",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Your race, leg by leg: which legs are beats, reaches and runs, time on each tack, and live ETAs at every mark and the finish, from the route you choose and your polar",
   "keywords": [
     "signalk-webapp",

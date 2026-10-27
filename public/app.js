@@ -236,7 +236,7 @@
     polar.loading = true
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), POLAR_TIMEOUT_MS)
-    const url = `${POLAR_CURVE}?tws=${(bucket / KN_PER_MS).toFixed(3)}&step=${rad(1).toFixed(5)}`
+    const url = `${POLAR_CURVE}?tws=${(bucket / KN_PER_MS).toFixed(3)}&step=${rad(1)}`
     fetch(url, { credentials: 'include', signal: controller.signal })
       .then(async (res) => {
         const body = await res.json().catch((e) => {

@@ -2,6 +2,10 @@
 
 What's changed in each release of Race Plan, newest first.
 
+## 0.3.1 — 2026-10-28
+
+- Fixed the error `Polar: 'step' must be between 1° and π/2 radians`. Race Plan was asking the polar plugin for a step just under 1°, so it got no boat speeds back. Boat speeds and leg times now show again.
+
 ## 0.3.0 — 2026-10-18
 
 - **Choose the course in Race Plan.** A new Course list under the title shows your saved routes with their marks and length. Pick one and it becomes the active route for every connected app, starting at the first mark, with no need to go to the chart app. If a route is already active, Race Plan checks with you before switching.
